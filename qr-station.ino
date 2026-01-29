@@ -1,8 +1,7 @@
 /*
  * Project: QR Station
- * Open Source: https://github.com/mhqb365/qr-station
+ * Open Source: https://github.com/mhqb365/QR-Station
  * Developer: mhqb365.com
- * Description: ESP32-C3 Based Bank QR Display
  */
 
 #include <Adafruit_GFX.h>
@@ -362,7 +361,7 @@ const char* config_html =
 "</div></div>"
 "<div class='tab-pane'>"
 "<div class='card'>"
-"<div class='form-group'><label>MQTT server (IP/Tên miền)</label><input type='text' name='ms' value='%MS%'></div>"
+"<div class='form-group'><label>Máy chủ MQTT</label><input type='text' name='ms' value='%MS%'></div>"
 "<div class='form-group'><label>Tài khoản</label><input type='text' name='mu' value='%MU%'></div>"
 "<div class='form-group'><label>Mật khẩu</label><input type='password' name='mp' value='%MP%'></div>"
 "</div></div>"
@@ -595,8 +594,8 @@ void handleOTA() {
     
     loadSettings();
     
-    server.send(200, "text/html", "<html><body style='background:#0f0c29;color:#fff;text-align:center;padding-top:100px;font-family:sans-serif;'>"
-                                  "<h1 style='color: green;'>Đã lưu!</h1>"
+    server.send(200, "text/html", "<html><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><body style='background:#0f0c29;color:#fff;text-align:center;padding-top:100px;font-family:sans-serif;'>"
+                                  "<h1 style='color: green;'>Đã lưu</h1>"
                                   "<a href='/' style='color:#00d2ff;'>Quay lại</a></body></html>");
   });
 
@@ -606,8 +605,8 @@ void handleOTA() {
     preferences.clear();
     preferences.end();
     loadSettings();
-    server.send(200, "text/html", "<html><body style='background:#0f0c29;color:#fff;text-align:center;padding-top:100px;font-family:sans-serif;'>"
-                                  "<h1 style='color: red;'>Đã xóa!</h1>"
+    server.send(200, "text/html", "<html><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><body style='background:#0f0c29;color:#fff;text-align:center;padding-top:100px;font-family:sans-serif;'>"
+                                  "<h1 style='color: red;'>Đã xóa</h1>"
                                   "<a href='/' style='color:#00d2ff;'>Quay lại</a></body></html>");
   });
 
@@ -621,8 +620,8 @@ void handleOTA() {
   
   server.on("/update", HTTP_POST, [&]() {
     server.sendHeader("Connection", "close");
-    server.send(200, "text/html", (Update.hasError()) ? "<html><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><body style='background:#0f0c29;color:#fff;text-align:center;padding-top:100px;font-family:sans-serif;'>Update thất bại!</body></html>" : "<html><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><body style='background:#0f0c29;color:#fff;text-align:center;padding-top:100px;font-family:sans-serif;'>"
-                                  "<p>Update thành công!<br>Đang khởi động lại, bạn có thể đóng cửa sổ này</p></body></html>");
+    server.send(200, "text/html", (Update.hasError()) ? "<html><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><body style='background:#0f0c29;color:#fff;text-align:center;padding-top:100px;font-family:sans-serif;'>Nâng cấp thất bại</body></html>" : "<html><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><body style='background:#0f0c29;color:#fff;text-align:center;padding-top:100px;font-family:sans-serif;'>"
+                                  "<p>Nâng cấp thành công, bạn có thể đóng cửa sổ này</p></body></html>");
     delay(2000);
     ESP.restart();
   }, [&]() {
@@ -1445,7 +1444,6 @@ void handleIPDisplay() {
 
 /*
  * Project: QR Station
- * Open Source: https://github.com/mhqb365/qr-station
+ * Open Source: https://github.com/mhqb365/QR-Station
  * Developer: mhqb365.com
- * Description: ESP32-C3 Based Bank QR Display
  */

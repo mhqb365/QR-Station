@@ -55,28 +55,23 @@
 
       <div class="form-group">
         <label>Số tiền</label>
-        <input
-          type="number"
-          id="amt"
-          placeholder="Ví dụ: 50000"
-          value="10000"
-        />
+        <input type="number" id="amt" value="1000" />
       </div>
 
       <div class="form-group">
-        <label>Nội dung</label>
-        <input
-          type="text"
-          id="desc"
-          placeholder="Nội dung chuyển khoản"
-          value="Test QR"
-        />
+        <label>Nội dung QR</label>
+        <div style="display: flex; flex-direction: column; gap: 5px">
+          <input type="text" id="qr_default_content" />
+          <div style="font-size: 11px; color: #aaa; font-style: italic">
+            Bỏ trống để khách tự nhập nội dung
+          </div>
+        </div>
       </div>
 
-      <button id="push" class="btn">TẠO QR THỬ NGHIỆM</button>
+      <button id="push" class="btn">TẠO QR</button>
       <div id="status" class="status"></div>
 
-      <div class="mqtt-settings">
+      <div class="settings-box mqtt-settings">
         <div
           style="
             display: flex;

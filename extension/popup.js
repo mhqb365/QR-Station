@@ -2,7 +2,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const ipInput = document.getElementById("ip");
   const targetAccSelect = document.getElementById("targetAccount");
   const amtInput = document.getElementById("amt");
-  const descInput = document.getElementById("desc");
   const pushBtn = document.getElementById("push");
   const searchBtn = document.getElementById("search");
   const statusDiv = document.getElementById("status");
@@ -25,6 +24,7 @@ document.addEventListener("DOMContentLoaded", () => {
       "mqtt_enabled",
       "mqtt_status",
       "mqtt_error",
+      "qr_default_content",
     ],
     (res) => {
       console.log("Popup loaded, MQTT status:", res.mqtt_status);
@@ -54,6 +54,16 @@ document.addEventListener("DOMContentLoaded", () => {
       updateMqttStatusDisplay(res.mqtt_status, res.mqtt_error);
       validateMqttInputs();
       validateEspInputs();
+
+      const qrContentInput = document.getElementById("qr_default_content");
+      if (res.qr_default_content !== undefined) {
+        qrContentInput.value = res.qr_default_content;
+      } else {
+        qrContentInput.value = "";
+      }
+      qrContentInput.addEventListener("input", (e) => {
+        chrome.storage.local.set({ qr_default_content: e.target.value });
+      });
     },
   );
 
@@ -74,7 +84,7 @@ document.addEventListener("DOMContentLoaded", () => {
         showStatus("✅ Kết nối MQTT thành công", "success", "mqtt_info");
         isMqttSaving = false;
       } else if (status === "connecting" && isMqttSaving) {
-        showStatus("⏳ Đang thử kết nối...", "info", "mqtt_info");
+        showStatus("⏳ Đang kết nối", "info", "mqtt_info");
       } else if (status === "error") {
         showStatus(
           "❌ Lỗi: " + (error || "Không thể kết nối"),
@@ -201,7 +211,6 @@ document.addEventListener("DOMContentLoaded", () => {
       if (res.ok) {
         deviceAccounts = await res.json();
         renderAccountSelect(savedIdx);
-        // showStatus("✅ Đã kết nối thiết bị", "success"); // Tắt bớt status để tránh đè khi đang quét
         chrome.storage.local.set({
           esp_ip: ip,
           esp_user: document.getElementById("esp_user").value.trim(),
@@ -337,7 +346,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const ip = ipInput.value.trim();
     const idx = targetAccSelect.value;
     const amt = amtInput.value.trim();
-    const desc = descInput.value.trim();
+    // const desc = descInput.value.trim(); // Old logic
+
+    // New logic mirroring content.js
+    const desc = document.getElementById("qr_default_content").value.trim();
 
     if (!ip || idx === "") {
       showStatus("Vui lòng kết nối thiết bị QR Station", "error");
@@ -346,6 +358,32 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const account = deviceAccounts[idx];
     showStatus("🚀 Đang tạo", "info");
+
+    const qrData = {
+      bin: account.bin,
+      acc: account.acc,
+      amount: amt,
+      owner: account.on || account.name,
+      desc: desc,
+    };
+
+    // Show on screen (Content Script)
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs.length > 0) {
+        chrome.tabs.sendMessage(
+          tabs[0].id,
+          { action: "show-qr-modal", data: qrData },
+          (response) => {
+            if (chrome.runtime.lastError) {
+              console.log(
+                "Could not send to content script:",
+                chrome.runtime.lastError.message,
+              );
+            }
+          },
+        );
+      }
+    });
 
     const url = `http://${ip}/api/qr?bin=${account.bin}&acc=${account.acc}&amt=${amt}&on=${encodeURIComponent(account.on || account.name)}&desc=${encodeURIComponent(desc)}`;
 

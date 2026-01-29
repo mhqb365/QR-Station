@@ -19,33 +19,105 @@
     return amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") + "đ";
   }
 
+  function getBankName(bin) {
+    const banks = {
+      970436: "Vietcombank",
+      970415: "VietinBank",
+      970418: "BIDV",
+      970405: "Agribank",
+      970422: "MB Bank",
+      970407: "Techcombank",
+      970423: "TPBank",
+      970432: "VPBank",
+      970403: "Sacombank",
+      970441: "VIB",
+      970443: "SHB",
+      970428: "NAM A BANK",
+      970437: "HDBank",
+      970454: "VietCapitalBank",
+      970429: "SCB",
+      970452: "KienLongBank",
+      970430: "PGBank",
+      970448: "OCB",
+      970431: "Eximbank",
+      970425: "ABBANK",
+      970416: "ACB",
+      970427: "VietABank",
+      970440: "SEABank",
+      970419: "NCB",
+      970438: "BaoVietBank",
+      970406: "DongA Bank",
+      970433: "VietBank",
+      970424: "Shinhan Bank",
+      970412: "PVcomBank",
+      970400: "SaigonBank",
+      970449: "LPBank",
+      970414: "OceanBank",
+      970439: "Public Bank",
+      970455: "Woori Bank",
+      970408: "GPBank",
+      970457: "Wooribank",
+      970458: "United Overseas Bank",
+      970410: "Standard Chartered",
+      970446: "CBBank",
+      970450: "CIMB",
+      970434: "Indovina Bank",
+      970460: "VRB",
+      970462: "Kookmin Bank",
+      970426: "MSB",
+      970442: "HongLeong Bank",
+    };
+    return banks[bin] || "Ngân hàng khác";
+  }
+
   function showScreenQr(data) {
     const { bin, acc, amount, owner, desc } = data;
-    const qrUrl = `https://img.vietqr.io/image/${bin}-${acc}-compact.png?amount=${amount}&addInfo=${encodeURIComponent(desc)}&accountName=${encodeURIComponent(owner)}`;
+    const qrUrl = `https://img.vietqr.io/image/${bin}-${acc}-qr_only.png?amount=${amount}&addInfo=${encodeURIComponent(desc)}&accountName=${encodeURIComponent(owner)}`;
 
     const overlay = document.createElement("div");
     overlay.className = "qr-modal-overlay";
     overlay.id = "qr-modal-overlay";
 
+    const bankName = getBankName(bin);
+
     overlay.innerHTML = `
       <div class="qr-modal-container">
-        <button class="qr-modal-close" id="qr-modal-close">&times;</button>
-        
-        <div class="qr-image-wrapper">
-          <div class="qr-loading-spinner" id="qr-loading-spinner"></div>
-          <img src="${qrUrl}" class="qr-modal-image" id="qr-modal-image" alt="VietQR">
+        <div class="qr-modern-header">
+           <div class="qr-modern-title">
+             QUÉT MÃ THANH TOÁN
+           </div>
+           <button class="qr-modal-close" id="qr-modal-close">&times;</button>
         </div>
 
-        <div class="qr-modal-info">
-          <div class="qr-modal-amount">${formatMoney(amount)}</div>
-          <div class="qr-modal-account">${acc}</div>
-          <div class="qr-modal-owner">${owner}</div>
+        <div class="qr-modern-body">
+            <div class="qr-bank-tag">Ngân hàng ${bankName}</div>
+            
+            <div class="qr-image-wrapper">
+               <div class="qr-loading-spinner" id="qr-loading-spinner"></div>
+               <img src="${qrUrl}" class="qr-modal-image" id="qr-modal-image" alt="VietQR">
+            </div>
+            
+            <div class="qr-amount-box">
+                <div class="qr-amount-value">${formatMoney(amount)}</div>
+            </div>
+
+            <div class="qr-info-table">
+                <div class="qr-info-row">
+                    <span class="qr-label">Chủ tài khoản</span>
+                    <span class="qr-value" style="text-transform: uppercase">${owner}</span>
+                </div>
+                 <div class="qr-info-row">
+                    <span class="qr-label">Số tài khoản</span>
+                    <span class="qr-value">${acc}</span>
+                </div>
+            </div>
         </div>
-        <p style="margin-top: 10px; font-size: 12px; color: #888;">Quét mã để thanh toán</p>
-        
-        <button class="qr-modal-retry-btn" id="qr-modal-push-device">
-          <svg viewBox="0 0 24 24"><path d="M3 11h8V3H3v8zm2-6h4v4H5V5zM3 21h8v-8H3v8zm2-6h4v4H5v-4zM13 3v8h8V3h-8zm6 6h-4V5h4v4zM13 13h2v2h-2v-2zm2 2h2v2h-2v-2zm2-2h2v2h-2v-2zm2 2h2v2h-2v-2zm-4 4h2v2h-2v-2zm2 2h2v2h-2v-2zm-4 0h2v2h-2v-2zm2-2h2v2h-2v-2zm-2-2h2v2h-2v-2z"/></svg>
-        </button>
+
+        <div class="qr-modern-footer">
+           <button class="qr-modal-retry-btn" id="qr-modal-push-device" title="Gửi sang màn hình phụ">
+              <svg viewBox="0 0 24 24"><path d="M3 11h8V3H3v8zm2-6h4v4H5V5zM3 21h8v-8H3v8zm2-6h4v4H5v-4zM13 3v8h8V3h-8zm6 6h-4V5h4v4zM13 13h2v2h-2v-2zm2 2h2v2h-2v-2zm2-2h2v2h-2v-2zm2 2h2v2h-2v-2zm-4 4h2v2h-2v-2zm2 2h2v2h-2v-2zm-4 0h2v2h-2v-2zm2-2h2v2h-2v-2zm-2-2h2v2h-2v-2z"/></svg>
+           </button>
+        </div>
       </div>
     `;
 
@@ -54,6 +126,7 @@
     const closeBtn = overlay.querySelector("#qr-modal-close");
     const qrImg = overlay.querySelector("#qr-modal-image");
     const spinner = overlay.querySelector("#qr-loading-spinner");
+    const pushDeviceBtn = overlay.querySelector("#qr-modal-push-device");
 
     qrImg.onload = () => {
       spinner.style.display = "none";
@@ -64,11 +137,11 @@
       document.body.removeChild(overlay);
     };
 
-    const pushDeviceBtn = overlay.querySelector("#qr-modal-push-device");
     pushDeviceBtn.onclick = async () => {
       const originalHtml = pushDeviceBtn.innerHTML;
       pushDeviceBtn.disabled = true;
-      pushDeviceBtn.classList.add("loading");
+      pushDeviceBtn.innerHTML =
+        '<div class="qr-loading-spinner" style="width: 20px; height: 20px; border-width: 2px; border-color: rgba(255,255,255,0.3); border-left-color: white;"></div>';
 
       try {
         const settings = await chrome.storage.local.get(["esp_ip"]);
@@ -144,14 +217,14 @@
           if (amount <= 0) return;
 
           // Shorten description
-          if (desc.length > 35) desc = desc.substring(0, 32) + "...";
+          if (desc.length > 55) desc = desc.substring(0, 52) + "...";
 
           const amountStr = formatMoney(amount);
           const accountInfo =
             gateway && account
-              ? ` (${gateway}: ${account})`
+              ? ` (${gateway} ${account})`
               : gateway || account
-                ? ` (${gateway}: ${account})`
+                ? ` (${gateway} ${account})`
                 : "";
 
           const toast = document.createElement("div");
@@ -200,6 +273,9 @@
     if (request.action === "mqtt-message") {
       log("MQTT message payload: " + request.payload);
       showMqttToast(request.payload);
+    }
+    if (request.action === "show-qr-modal") {
+      showScreenQr(request.data);
     }
   });
 
@@ -324,7 +400,9 @@
 
     const originalHtml = btn.innerHTML;
     btn.disabled = true;
-    btn.classList.add("loading");
+    // btn.classList.add("loading");
+    btn.innerHTML =
+      '<div class="qr-loading-spinner" style="width: 20px; height: 20px; border-width: 2px; border-color: rgba(255,255,255,0.3); border-left-color: white;"></div>';
 
     try {
       const settings = await chrome.storage.local.get([
@@ -332,13 +410,18 @@
         "last_bin",
         "last_acc",
         "last_owner",
+        "qr_default_content",
       ]);
       console.log(settings);
       const host = settings.esp_ip;
       const bin = settings.last_bin || "";
       const acc = settings.last_acc;
       const owner = settings.last_owner || "";
-      const desc = "Chuyen tien";
+
+      let desc = settings.qr_default_content;
+      if (desc === undefined || desc === null) {
+        desc = "Chuyen tien";
+      }
 
       if (!settings.esp_ip || !settings.last_acc) {
         alert(
