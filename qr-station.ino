@@ -42,6 +42,7 @@ char mqtt_user[32] = "";
 char mqtt_pass[32] = "";
 char auth_user[32] = "admin";
 char auth_pass[32] = "admin";
+bool mqtt_enabled = true;
 unsigned long lastMqttRetry = 0;
 
 int wifiRetries = 0;
@@ -142,6 +143,7 @@ void loadSettings() {
   String mp = preferences.getString("m_pass", "");
   String au = preferences.getString("a_user", "admin");
   String ap = preferences.getString("a_pass", "admin");
+  mqtt_enabled = preferences.getBool("m_en", true);
   savedWifiList = preferences.getString("w_list", "[]");
 
   // Migration for legacy single WiFi
@@ -298,6 +300,22 @@ void initApiRoutes() {
     json += "]";
     server.send(200, "application/json", json);
   });
+  
+  server.on("/api/mqtt_status", HTTP_GET, []() {
+    if (strlen(auth_user) > 0 && !server.authenticate(auth_user, auth_pass)) {
+      return server.requestAuthentication();
+    }
+    String status = "disconnected";
+    if (mqtt_enabled && mqttClient.connected()) {
+      status = "connected";
+    } else if (mqtt_enabled && strlen(mqtt_server) > 0) {
+      status = "connecting";
+    } else if (!mqtt_enabled) {
+      status = "disabled";
+    }
+    String json = "{\"status\":\"" + status + "\",\"enabled\":" + String(mqtt_enabled ? "true" : "false") + "}";
+    server.send(200, "application/json", json);
+  });
 }
 
 // Giao diện trang cấu hình
@@ -309,7 +327,10 @@ const char* config_html =
 ".form-group{margin-bottom:15px;text-align:left;}label{display:block;margin-bottom:5px;font-size:0.85em;color:#aaa;}input,select{width:100%;padding:12px;background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.2);border-radius:10px;color:#fff;box-sizing:border-box;transition:0.3s;cursor:pointer;font-size:16px;-webkit-appearance:none;}input:focus,select:focus{outline:none;border-color:#00d2ff;background:rgba(0,0,0,0.4);}option{background:#302b63;color:#fff;}"
 ".btn{background:linear-gradient(to right,#00d2ff,#3a7bd5);border:none;color:white;padding:15px;font-size:16px;cursor:pointer;border-radius:10px;font-weight:bold;width:100%;margin-top:10px;box-shadow:0 5px 15px rgba(0,210,255,0.3);}"
 ".btn:active{transform:scale(0.98);}.nav{display:flex;gap:10px;margin-bottom:25px;}.nav a{flex:1;text-decoration:none;background:rgba(255,255,255,0.1);color:#fff;padding:10px;border-radius:10px;text-align:center;font-size:0.9em;border:1px solid transparent;}.nav a.active{background:rgba(0,210,255,0.2);border-color:#00d2ff;}"
-".tabs-nav{display:flex;gap:5px;margin-bottom:15px;}.tab-btn{flex:1;padding:10px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.1);color:#fff;border-radius:10px;cursor:pointer;font-size:0.9em;transition:0.3s;font-weight:bold;}.tab-btn.active{background:rgba(0,210,255,0.2);border-color:#00d2ff;color:#00d2ff;}.tab-pane{display:none;}.tab-pane.active{display:block;}</style></head><body>"
+".tabs-nav{display:flex;gap:5px;margin-bottom:15px;}.tab-btn{flex:1;padding:10px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.1);color:#fff;border-radius:10px;cursor:pointer;font-size:0.9em;transition:0.3s;font-weight:bold;}.tab-btn.active{background:rgba(0,210,255,0.2);border-color:#00d2ff;color:#00d2ff;}.tab-pane{display:none;}.tab-pane.active{display:block;}"
+".switch{position:relative;display:inline-block;width:34px;height:20px;}.switch input{opacity:0;width:0;height:0;}.slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background-color:#444;transition:0.4s;}.slider:before{position:absolute;content:'';height:14px;width:14px;left:3px;bottom:3px;background-color:white;transition:0.4s;}input:checked+.slider{background-color:#00d2ff;}input:checked+.slider:before{transform:translateX(14px);}.slider.round{border-radius:20px;}.slider.round:before{border-radius:50%;}"
+".status-dot{width:8px;height:8px;border-radius:50%;box-shadow:0 0 5px rgba(255,255,255,0.2);}.status-dot.connected{background-color:#00ff00;box-shadow:0 0 8px rgba(0,255,0,0.5);}.status-dot.disconnected{background-color:#ff3b3b;box-shadow:0 0 8px rgba(255,59,59,0.5);}.status-dot.connecting{background-color:#ffcc00;box-shadow:0 0 8px rgba(255,204,0,0.5);animation:pulse 1s infinite alternate;}.status-dot.error{background-color:#ff00ff;box-shadow:0 0 8px rgba(255,0,255,0.5);}@keyframes pulse{from{opacity:0.5;transform:scale(0.8);}to{opacity:1;transform:scale(1.1);}}"
+"</style></head><body>"
 "<div class='container'><div class='nav'><a href='/' class='active'>Cài đặt</a><a href='/updatefw'>Nâng cấp Firmware</a></div>"
 "<h2 style='text-align: center;'>QR Station</h2>"
 "<form action='/save' method='POST'>"
@@ -361,10 +382,22 @@ const char* config_html =
 "</div></div>"
 "<div class='tab-pane'>"
 "<div class='card'>"
+"<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;'>"
+"<div style='display:flex;align-items:center;gap:8px;'>"
+"<h3 style='margin:0;font-size:14px;'>Thông báo số dư</h3>"
+"<div id='mqtt_status_dot' class='status-dot disconnected' title='Disconnected'></div>"
+"</div>"
+"<label class='switch'>"
+"<input type='checkbox' id='mqtt_toggle' %MQTT_ENABLED%>"
+"<span class='slider round'></span>"
+"</label>"
+"</div>"
+"<div id='mqtt_fields'>"
 "<div class='form-group'><label>Máy chủ MQTT</label><input type='text' name='ms' value='%MS%'></div>"
 "<div class='form-group'><label>Tài khoản</label><input type='text' name='mu' value='%MU%'></div>"
 "<div class='form-group'><label>Mật khẩu</label><input type='password' name='mp' value='%MP%'></div>"
-"</div></div>"
+"<input type='hidden' name='me' id='mqtt_enabled_val' value='%MQTT_ENABLED_VAL%'>"
+"</div></div></div>"
 "<div class='tab-pane'>"
 "<div class='card'>"
 "<div class='form-group'><label>Tài khoản</label><input type='text' name='au' value='%AU%'></div>"
@@ -410,6 +443,10 @@ const char* config_html =
 "v.innerHTML=`<span style='font-size:0.9em;'>${w.s}</span><button type='button' style='background:none;border:none;color:#ff416c;cursor:pointer;font-size:1.2em;padding:0 5px;' onclick='dw(${i})'>&times;</button>`;"
 "l.appendChild(v);});});}"
 "function dw(i){if(confirm('Xóa mạng này?')){fetch('/del_wifi?i='+i).then(()=>lw());}}"
+"function toggleMqttFields(){const t=document.getElementById('mqtt_toggle');const f=document.getElementById('mqtt_fields');const v=document.getElementById('mqtt_enabled_val');if(t.checked){f.style.opacity='1';f.style.pointerEvents='auto';v.value='1';}else{f.style.opacity='0.5';f.style.pointerEvents='none';v.value='0';}}"
+"const mqttToggle=document.getElementById('mqtt_toggle');if(mqttToggle){mqttToggle.addEventListener('change',toggleMqttFields);toggleMqttFields();}"
+"function updateMqttStatus(){fetch('/api/mqtt_status').then(r=>r.json()).then(d=>{const dot=document.getElementById('mqtt_status_dot');if(!dot)return;dot.className='status-dot';if(d.status==='connected'){dot.classList.add('connected');dot.title='Connected';}else if(d.status==='connecting'){dot.classList.add('connecting');dot.title='Connecting...';}else if(d.status==='disabled'){dot.classList.add('disconnected');dot.title='Disabled';}else{dot.classList.add('disconnected');dot.title='Disconnected';}}).catch(()=>{});}"
+"updateMqttStatus();setInterval(updateMqttStatus,3000);"
 "for(let i=0;i<3;i++){const s=document.getElementById('bin'+i);banks.forEach(bk=>{const o=document.createElement('option');o.value=bk.b;o.text=bk.n;if(bk.b===vals[i])o.selected=true;s.appendChild(o);});upd(i);}"
 "lw();"
 "</script></div></body></html>";
@@ -490,6 +527,8 @@ void handleOTA() {
     html.replace("%MP%", mqtt_pass);
     html.replace("%AU%", auth_user);
     html.replace("%AP%", auth_pass);
+    html.replace("%MQTT_ENABLED%", mqtt_enabled ? "checked" : "");
+    html.replace("%MQTT_ENABLED_VAL%", mqtt_enabled ? "1" : "0");
 
     server.send(200, "text/html", html);
   });
@@ -588,6 +627,7 @@ void handleOTA() {
     preferences.putString("m_serv", server.arg("ms"));
     preferences.putString("m_user", server.arg("mu"));
     preferences.putString("m_pass", server.arg("mp"));
+    preferences.putBool("m_en", server.arg("me") == "1");
     preferences.putString("a_user", server.arg("au"));
     preferences.putString("a_pass", server.arg("ap"));
     preferences.end();
@@ -817,6 +857,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 
 
 void reconnectMQTT() {
+  if (!mqtt_enabled) return;
   if (connectionDisabled) return;
   if (strlen(mqtt_server) == 0) return;
   if (WiFi.status() != WL_CONNECTED) return;
@@ -1132,6 +1173,11 @@ void loop() {
       }
       if (!mqttClient.connected()) {
         reconnectMQTT();
+      }
+      // Disconnect MQTT nếu mqtt_enabled = false
+      if (!mqtt_enabled && mqttClient.connected()) {
+        mqttClient.disconnect();
+        Serial.println("MQTT disabled, disconnecting...");
       }
       mqttClient.loop();
     } else {
