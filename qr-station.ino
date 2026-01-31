@@ -116,6 +116,30 @@ void showNotification(long amount, const char* content, const char* gateway, con
 void handleIPDisplay();
 
 
+// Cấu hình chân ESP32-C3 Super Mini
+#define TFT_CS    10
+#define TFT_RST   9
+#define TFT_DC    8
+#define TFT_SDA   5
+#define TFT_SCL   4
+#define TFT_BL    7
+
+#define BUTTON1   1
+#define BUTTON2   2
+#define BUTTON3   3
+#define BUTTON4   6
+
+Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST);
+QRcode_ST7735 qrcode (&tft);
+
+// Brightness control
+const int PWM_CHANNEL = TFT_BL;  // Use PIN number for Core 3.0
+const int PWM_FREQ = 5000;  // PWM frequency
+const int PWM_RESOLUTION = 8; // 8-bit resolution (0-255)
+int brightnessLevels[] = {51, 102, 153, 204, 255}; // 20%, 40%, 60%, 80%, 100%
+int currentBrightnessIndex = 4; // Default to 100% brightness
+int currentBrightness = 255;
+
 void loadSettings() {
   preferences.begin("bank_data", false);
   for(int i=0; i<3; i++) {
@@ -173,8 +197,77 @@ void loadSettings() {
   strncpy(auth_user, au.c_str(), sizeof(auth_user) - 1);
   strncpy(auth_pass, ap.c_str(), sizeof(auth_pass) - 1);
 
+  // Load brightness setting
+  currentBrightnessIndex = preferences.getInt("brightness", 4); // Default level 4 (100%)
+  if (currentBrightnessIndex < 0 || currentBrightnessIndex > 4) currentBrightnessIndex = 4;
+  currentBrightness = brightnessLevels[currentBrightnessIndex];
   
   preferences.end();
+}
+
+void saveBrightness() {
+  preferences.begin("bank_data", false);
+  preferences.putInt("brightness", currentBrightnessIndex);
+  preferences.end();
+}
+
+void setBrightness(int brightness) {
+  currentBrightness = brightness;
+  if (isPowerOn) {
+    ledcWrite(PWM_CHANNEL, currentBrightness);
+  }
+}
+
+void increaseBrightness() {
+  if (currentBrightnessIndex < 4) {
+    currentBrightnessIndex++;
+    setBrightness(brightnessLevels[currentBrightnessIndex]);
+    saveBrightness();
+    Serial.print("Brightness: ");
+    Serial.print((currentBrightnessIndex + 1) * 20);
+    Serial.println("%");
+  }
+}
+
+void decreaseBrightness() {
+  if (currentBrightnessIndex > 0) {
+    currentBrightnessIndex--;
+    setBrightness(brightnessLevels[currentBrightnessIndex]);
+    saveBrightness();
+    Serial.print("Brightness: ");
+    Serial.print((currentBrightnessIndex + 1) * 20);
+    Serial.println("%");
+  }
+}
+
+void showBrightnessIndicator() {
+  if (!isPowerOn) return;
+  
+  // Show brightness level on screen
+  int barWidth = 80;
+  int barHeight = 10;
+  int barX = (128 - barWidth) / 2;
+  int barY = 60;
+  
+  // Draw background
+  tft.fillRect(barX - 2, barY - 2, barWidth + 4, barHeight + 4, ST77XX_BLACK);
+  tft.drawRect(barX - 2, barY - 2, barWidth + 4, barHeight + 4, ST77XX_WHITE);
+  
+  // Draw brightness bar
+  int fillWidth = (barWidth * (currentBrightnessIndex + 1)) / 5;
+  tft.fillRect(barX, barY, barWidth, barHeight, ST77XX_BLACK);
+  tft.fillRect(barX, barY, fillWidth, barHeight, ST77XX_CYAN);
+  
+  // Draw percentage text
+  tft.setTextSize(1);
+  tft.setTextColor(ST77XX_WHITE);
+  String percentText = String((currentBrightnessIndex + 1) * 20) + "%";
+  int16_t x1, y1;
+  uint16_t w, h;
+  tft.getTextBounds(percentText, 0, 0, &x1, &y1, &w, &h);
+  tft.fillRect((128 - w) / 2 - 2, barY + barHeight + 5 - 2, w + 4, h + 4, ST77XX_BLACK);
+  tft.setCursor((128 - w) / 2, barY + barHeight + 5);
+  tft.print(percentText);
 }
 
 void saveAccount(int i, String bin, String acc, String bName, String oName) {
@@ -193,21 +286,7 @@ void saveAccount(int i, String bin, String acc, String bName, String oName) {
 }
 
 
-// Cấu hình chân ESP32-C3 Super Mini
-#define TFT_CS    10
-#define TFT_RST   9
-#define TFT_DC    8
-#define TFT_SDA   5
-#define TFT_SCL   4
-#define TFT_BL    7
 
-#define BUTTON1   1
-#define BUTTON2   2
-#define BUTTON3   3
-#define BUTTON4   6
-
-Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST);
-QRcode_ST7735 qrcode (&tft);
 
 // Trạng thái nút nhấn
 int currentMode = 1;
@@ -215,9 +294,11 @@ const int QR_TOP_MARGIN = 5;
 const unsigned long INACTIVITY_TIMEOUT_MS = 120000UL;
 unsigned long lastInputMs = 0;
 
+
+
 void showSplashScreen() {
   tft.fillScreen(ST77XX_BLACK);
-  digitalWrite(TFT_BL, HIGH);
+  ledcWrite(PWM_CHANNEL, currentBrightness);
 
   tft.drawCircle(64, 80, 40, 0x2104);
   tft.drawCircle(64, 80, 50, 0x1022);
@@ -252,8 +333,11 @@ void setup() {
   pinMode(BUTTON4, INPUT_PULLUP);
   
   pinMode(TFT_BL, OUTPUT);
-  digitalWrite(TFT_BL, LOW); 
- 
+  
+  // Initialize PWM for backlight brightness control
+  ledcAttach(PWM_CHANNEL, PWM_FREQ, PWM_RESOLUTION);
+  ledcWrite(PWM_CHANNEL, 0); // Start with backlight off
+  
   SPI.begin(TFT_SCL, -1, TFT_SDA, TFT_CS); 
   
   tft.initR(INITR_BLACKTAB);
@@ -265,7 +349,7 @@ void setup() {
   showSplashScreen(); 
   displayMode(currentMode);
   
-  digitalWrite(TFT_BL, HIGH); 
+  ledcWrite(PWM_CHANNEL, currentBrightness); // Set saved brightness level
   Serial.println("Display ready");
   lastInputMs = millis();
 
@@ -467,7 +551,7 @@ const char* update_html =
 
 void handleOTA() {
   if (!isPowerOn) {
-    digitalWrite(TFT_BL, HIGH);
+    ledcWrite(PWM_CHANNEL, currentBrightness);
     tft.sendCommand(0x29);
     isPowerOn = true;
   }
@@ -754,13 +838,13 @@ void handleApiQR() {
 
 void togglePower() {
   if (isPowerOn) {
-    digitalWrite(TFT_BL, LOW);
+    ledcWrite(PWM_CHANNEL, 0);
     tft.sendCommand(0x28);
     isPowerOn = false;
     Serial.println("Power OFF");
   } else {
     tft.sendCommand(0x29);
-    digitalWrite(TFT_BL, HIGH);
+    ledcWrite(PWM_CHANNEL, currentBrightness);
     isPowerOn = true;
     Serial.println("Power ON");
   }
@@ -769,7 +853,7 @@ void togglePower() {
 
 void togglePowerOnOnly() {
   tft.sendCommand(0x29);
-  digitalWrite(TFT_BL, HIGH);
+  ledcWrite(PWM_CHANNEL, currentBrightness);
   isPowerOn = true;
   recordActivity();
 }
@@ -926,9 +1010,10 @@ void showNotification(long amount, const char* content, const char* gateway, con
   recordActivity();
   if (!isPowerOn) {
     tft.sendCommand(0x29);
-    digitalWrite(TFT_BL, HIGH);
     isPowerOn = true;
   }
+  // Max brightness for notification
+  ledcWrite(PWM_CHANNEL, 255);
   
   tft.fillScreen(ST77XX_WHITE);
   tft.fillRect(0, 0, 128, 25, 0x03E0);
@@ -980,6 +1065,15 @@ void recordActivity() {
 }
 
 void loop() {
+  static unsigned long brightnessShowTime = 0;
+  static bool brightnessIndicatorShown = false;
+  
+  // Auto-hide brightness indicator after 2 seconds
+  if (brightnessIndicatorShown && (millis() - brightnessShowTime > 2000)) {
+    brightnessIndicatorShown = false;
+    displayMode(currentMode);
+  }
+  
   // Nút 1, 2, 3: Nếu màn hình tắt, nhấn nút bất kỳ chỉ để bật lên
   // --- XỬ LÝ NÚT NHẤN K1, K2, K3 ---
   // Nếu đang hiện QR động, nhấn nút bất kỳ sẽ quay về mode bình thường
@@ -1014,14 +1108,37 @@ void loop() {
     }
   }
 
-  // Nút K2 (Đổi Mode 2 / Đè 3s Reboot)
+  // Nút K2 (Đổi Mode 2 / Đè 3s Reboot / K2+K1 Tăng sáng / K2+K3 Giảm sáng)
   if (isPowerOn && digitalRead(BUTTON2) == LOW) {
     delay(50);
     if (digitalRead(BUTTON2) == LOW) {
       unsigned long startHold = millis();
       bool held = false;
+      bool brightnessAction = false;
+      
       while(digitalRead(BUTTON2) == LOW) {
-        if (millis() - startHold > 2000) {
+        // Tăng độ sáng (K1)
+        if (digitalRead(BUTTON1) == LOW) {
+             increaseBrightness();
+             showBrightnessIndicator();
+             brightnessAction = true;
+             brightnessIndicatorShown = true;
+             brightnessShowTime = millis();
+             delay(200); 
+             while(digitalRead(BUTTON1) == LOW);
+        }
+        // Giảm độ sáng (K3)
+        if (digitalRead(BUTTON3) == LOW) {
+             decreaseBrightness();
+             showBrightnessIndicator();
+             brightnessAction = true;
+             brightnessIndicatorShown = true;
+             brightnessShowTime = millis();
+             delay(200); 
+             while(digitalRead(BUTTON3) == LOW);
+        }
+
+        if (millis() - startHold > 2000 && !brightnessAction) {
           held = true;
           tft.fillScreen(ST77XX_BLACK);
           tft.setTextColor(ST77XX_WHITE);
@@ -1030,13 +1147,17 @@ void loop() {
           tft.println("Rebooting...");
           delay(1000);
           ESP.restart();
+          break;
         }
         delay(10);
       }
-      if (!held) {
+      
+      if (!held && !brightnessAction) {
         currentMode = 2; displayMode(2);
         recordActivity();
       }
+      
+      if (brightnessAction) recordActivity();
     }
   }
 
@@ -1128,13 +1249,6 @@ void loop() {
         recordActivity();
       }
     }
-  }
-
-  if (isPowerOn && (millis() - lastInputMs >= INACTIVITY_TIMEOUT_MS)) {
-    digitalWrite(TFT_BL, LOW);
-    tft.sendCommand(0x28);
-    isPowerOn = false;
-    dynamicQR.active = false; // Tắt luôn QR động khi hết timeout
   }
 
   // Web Server handling - Chỉ chạy khi WiFi đã ok
@@ -1405,6 +1519,9 @@ void displayEmptyMessage() {
 
 void displayMode(int mode) {
   if (mode == -1 && dynamicQR.active) {
+    // Max brightness for Dynamic QR
+    ledcWrite(PWM_CHANNEL, 255);
+    
     tft.fillScreen(ST77XX_WHITE);
     displayBankQR(
       generateQRString(dynamicQR.bin, dynamicQR.acc, dynamicQR.amount, dynamicQR.desc),
@@ -1417,6 +1534,9 @@ void displayMode(int mode) {
     return;
   }
 
+  // Restore user brightness
+  ledcWrite(PWM_CHANNEL, brightnessLevels[currentBrightnessIndex]);
+  
   int idx = mode - 1;
   if (idx < 0 || idx > 2) idx = 0; // Fallback
   
