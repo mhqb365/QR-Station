@@ -1,4 +1,8 @@
 // Background service worker for QR Station Link
+chrome.sidePanel
+  .setPanelBehavior({ openPanelOnActionClick: true })
+  .catch((error) => console.error(error));
+
 var window = self;
 var global = self;
 var document = {
@@ -106,6 +110,18 @@ function connectMQTT() {
                 })
                 .catch(() => {});
             });
+          });
+
+          // Play notification sound
+          chrome.storage.local.get(["mqtt_sound"], (s) => {
+            if (s.mqtt_sound !== false) {
+              try {
+                const data = JSON.parse(payload);
+                playNotificationSound(data);
+              } catch (e) {
+                playNotificationSound(null);
+              }
+            }
           });
         }
       });
@@ -249,3 +265,46 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true; // Keep message channel open for async response
   }
 });
+
+// --- Offscreen Document for Audio Playback ---
+let creatingOffscreen;
+async function setupOffscreenDocument(path) {
+  const offscreenUrl = chrome.runtime.getURL(path);
+
+  // Check if offscreen document already exists
+  if (chrome.runtime.getContexts) {
+    const existingContexts = await chrome.runtime.getContexts({
+      contextTypes: ["OFFSCREEN_DOCUMENT"],
+      documentUrls: [offscreenUrl],
+    });
+
+    if (existingContexts.length > 0) {
+      return;
+    }
+  }
+
+  // Handle race conditions
+  if (creatingOffscreen) {
+    await creatingOffscreen;
+  } else {
+    creatingOffscreen = chrome.offscreen.createDocument({
+      url: path,
+      reasons: ["AUDIO_PLAYBACK"],
+      justification: "Phát âm thanh thông báo khi nhận tin nhắn MQTT",
+    });
+    await creatingOffscreen;
+    creatingOffscreen = null;
+  }
+}
+
+async function playNotificationSound(data) {
+  try {
+    await setupOffscreenDocument("offscreen.html");
+    chrome.runtime.sendMessage({
+      action: "play-notification-sound",
+      data: data,
+    });
+  } catch (err) {
+    console.error("Error playing notification sound:", err);
+  }
+}

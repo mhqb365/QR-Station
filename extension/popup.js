@@ -25,6 +25,7 @@ document.addEventListener("DOMContentLoaded", () => {
       "mqtt_status",
       "mqtt_error",
       "qr_default_content",
+      "mqtt_sound",
     ],
     (res) => {
       console.log("Popup loaded, MQTT status:", res.mqtt_status);
@@ -64,6 +65,13 @@ document.addEventListener("DOMContentLoaded", () => {
       qrContentInput.addEventListener("input", (e) => {
         chrome.storage.local.set({ qr_default_content: e.target.value });
       });
+      const mqttSound = document.getElementById("mqtt_sound");
+      if (mqttSound) {
+        mqttSound.checked = res.mqtt_sound !== false;
+        mqttSound.addEventListener("change", (e) => {
+          chrome.storage.local.set({ mqtt_sound: e.target.checked });
+        });
+      }
     },
   );
 
