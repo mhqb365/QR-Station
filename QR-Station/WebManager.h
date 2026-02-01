@@ -18,6 +18,7 @@ public:
   
   void startAP();
   void stopAP();
+  void loadSettings();
   
   void handleReset(); // Called from main loop
   

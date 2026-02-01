@@ -30,6 +30,7 @@ public:
   void setClickHandler(int btnIndex, ButtonCallback cb);
   void setLongPressHandler(int btnIndex, ButtonCallback cb);
   void setDoubleClickHandler(int btnIndex, ButtonCallback cb);
+  void setHandled(int btnIndex);
 
 private:
   ButtonConfig buttons[4]; // 0=K1, 1=K2, 2=K3, 3=K4

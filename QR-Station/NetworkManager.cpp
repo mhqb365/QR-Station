@@ -132,7 +132,7 @@ void QRNetworkManager::addWifi(const char* ssid, const char* pass) {
 }
 
 void QRNetworkManager::loadSettings() {
-  preferences.begin("bank_data", false);
+  preferences.begin("bank_data", true); // Use read-only for loading
   
   String s = preferences.getString("w_ssid", "");
   String p = preferences.getString("w_pass", "");
@@ -140,11 +140,16 @@ void QRNetworkManager::loadSettings() {
   String mu = preferences.getString("m_user", "");
   String mp = preferences.getString("m_pass", "");
   
+  bool oldEn = mqttEnabled;
+  String oldServ = mqttServer;
+  
   mqttEnabled = preferences.getBool("m_en", true);
   savedWifiList = preferences.getString("w_list", "[]");
 
   // Migration logic
   if (s != "" && savedWifiList == "[]") {
+    preferences.end();
+    preferences.begin("bank_data", false);
     StaticJsonDocument<256> doc;
     JsonArray arr = doc.to<JsonArray>();
     JsonObject obj = arr.createNestedObject();
@@ -152,6 +157,8 @@ void QRNetworkManager::loadSettings() {
     obj["p"] = p;
     serializeJson(doc, savedWifiList);
     preferences.putString("w_list", savedWifiList);
+    preferences.end();
+    preferences.begin("bank_data", true);
   }
   
   mqttServer = m;
@@ -159,6 +166,14 @@ void QRNetworkManager::loadSettings() {
   mqttPass = mp;
   
   preferences.end();
+  
+  // If MQTT settings significantly changed or disabled, disconnect to force new setup
+  if (mqttClient.connected()) {
+      if (!mqttEnabled || mqttServer != oldServ) {
+          mqttClient.disconnect();
+          Serial.println("MQTT settings changed, disconnected.");
+      }
+  }
 }
 
 void QRNetworkManager::saveWifiList(String json) {
@@ -190,7 +205,28 @@ void QRNetworkManager::addOrUpdateWifi(String ssid, String pass) {
   
   String output;
   serializeJson(doc, output);
-  saveWifiList(output);
+  
+  // Save both the list and the "current/last" wifi credentials for sync
+  preferences.begin("bank_data", false);
+  preferences.putString("w_list", output);
+  preferences.putString("w_ssid", ssid);
+  preferences.putString("w_pass", pass);
+  preferences.end();
+  
+  savedWifiList = output;
+}
+
+String QRNetworkManager::getWifiPass(String ssid) {
+  StaticJsonDocument<1024> doc;
+  deserializeJson(doc, savedWifiList);
+  JsonArray arr = doc.as<JsonArray>();
+  
+  for (JsonObject obj : arr) {
+    if (obj["s"] == ssid) {
+      return obj["p"].as<String>();
+    }
+  }
+  return "";
 }
 
 String QRNetworkManager::getSavedWifiList() {

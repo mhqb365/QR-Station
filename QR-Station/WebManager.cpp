@@ -6,11 +6,7 @@ WebManager::WebManager() : server(80) {
 }
 
 void WebManager::begin() {
-  // Load auth settings
-  preferences.begin("bank_data", true);
-  authUser = preferences.getString("a_user", "admin");
-  authPass = preferences.getString("a_pass", "admin");
-  preferences.end();
+  loadSettings();
 
   // Load saved accounts
   preferences.begin("bank_data", true);
@@ -107,6 +103,13 @@ bool WebManager::checkAuth() {
   return true;
 }
 
+void WebManager::loadSettings() {
+  preferences.begin("bank_data", true);
+  authUser = preferences.getString("a_user", "admin");
+  authPass = preferences.getString("a_pass", "admin");
+  preferences.end();
+}
+
 // Handlers implementation
 void WebManager::handleRoot() {
   if (!checkAuth()) return;
@@ -127,14 +130,18 @@ void WebManager::handleRoot() {
       html.replace("%ON" + s + "%", accounts[i].ownerName);
   }
   
-  // Need to get pass from prefs again or cache it? handled by loading.
-  // Ideally we don't send back password.
-  // For now, keep as per original logic, though original logic had `wifi_pass` global.
-  // We can fetch from preferences if needed, but let's leave blank for security or put placeholder.
-  // Original sent it back. I need to get it.
-  preferences.begin("bank_data", true);
-  String wp = preferences.getString("w_pass", "");
-  preferences.end();
+  // Get password for current SSID or fallback
+  String currentSsid = WiFi.SSID();
+  String wp = "";
+  if (currentSsid != "") {
+      wp = networkManager.getWifiPass(currentSsid);
+  }
+  
+  if (wp == "") {
+      preferences.begin("bank_data", true);
+      wp = preferences.getString("w_pass", "");
+      preferences.end();
+  }
 
   html.replace("%WIFI_LIST%", wifiOptions);
   html.replace("%WP%", wp);
@@ -248,6 +255,7 @@ void WebManager::handleSave() {
     networkManager.addWifi(server.arg("ws").c_str(), server.arg("wp").c_str());
   }
 
+  preferences.begin("bank_data", false);
   preferences.putString("m_serv", server.arg("ms"));
   preferences.putString("m_user", server.arg("mu"));
   preferences.putString("m_pass", server.arg("mp"));
@@ -256,12 +264,11 @@ void WebManager::handleSave() {
   preferences.putString("a_pass", server.arg("ap"));
   preferences.end();
   
-  // Reload settings in network manager
+  // Reload settings
   networkManager.loadSettings();
-  authUser = server.arg("au");
-  authPass = server.arg("ap");
+  this->loadSettings();
   
-  server.send(200, "text/html", "<html><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><body style='background:#0f0c29;color:#fff;text-align:center;padding-top:100px;font-family:sans-serif;'><h1 style='color: green;'>Saved</h1><a href='/' style='color:#00d2ff;'>Back</a></body></html>");
+  server.send(200, "text/html", "<html><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><body style='background:#0f0c29;color:#fff;text-align:center;padding-top:100px;font-family:sans-serif;'><h1 style='color: green;'>Đã lưu thành công</h1><script>setTimeout(function(){window.location.href='/';},1500);</script><a href='/' style='color:#00d2ff;'>Quay lại</a></body></html>");
 }
 
 void WebManager::handleReset() {

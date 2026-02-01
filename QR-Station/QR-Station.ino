@@ -17,10 +17,13 @@ Preferences preferences;
 bool isPowerOn = true;
 DynamicQR dynamicQR;
 int currentMode = 1;
+unsigned long lastBrightnessAction = 0;
 
 // --- Callback Functions for Buttons ---
 
 void onK1Click() {
+  if (digitalRead(BUTTON2) == LOW || (millis() - lastBrightnessAction < 500)) return;
+  
   if (dynamicQR.active || displayManager.isShowingNotification) {
       dynamicQR.active = false;
       displayManager.isShowingNotification = false;
@@ -47,6 +50,8 @@ void onK1LongPress() {
 }
 
 void onK2Click() {
+  if (millis() - lastBrightnessAction < 500) return;
+
   if (dynamicQR.active || displayManager.isShowingNotification) {
       dynamicQR.active = false;
       displayManager.isShowingNotification = false;
@@ -73,6 +78,8 @@ void onK2LongPress() {
 }
 
 void onK3Click() {
+  if (digitalRead(BUTTON2) == LOW || (millis() - lastBrightnessAction < 500)) return;
+
   if (dynamicQR.active || displayManager.isShowingNotification) {
       dynamicQR.active = false;
       displayManager.isShowingNotification = false;
@@ -241,17 +248,19 @@ void loop() {
   }
   
   // Brightness Control Logic (Legacy K2 hold + K1/K3)
-  // Since we use non-blocking button manager, we can check raw state for this combo
-  // But ButtonManager consumes events.
-  // Alternative: implement direct brightness buttons if user allows, 
-  // or add "isPressed(pin)" to button manager access.
   if (digitalRead(BUTTON2) == LOW) {
       if (digitalRead(BUTTON1) == LOW) {
+          lastBrightnessAction = millis();
+          buttonManager.setHandled(0); // Mark K1 handled
+          buttonManager.setHandled(1); // Mark K2 handled
           displayManager.increaseBrightness();
           displayManager.showBrightnessIndicator();
-          delay(150); // Small delay to throttle
+          delay(150); 
       }
       if (digitalRead(BUTTON3) == LOW) {
+          lastBrightnessAction = millis();
+          buttonManager.setHandled(2); // Mark K3 handled
+          buttonManager.setHandled(1); // Mark K2 handled
           displayManager.decreaseBrightness();
           displayManager.showBrightnessIndicator();
           delay(150);

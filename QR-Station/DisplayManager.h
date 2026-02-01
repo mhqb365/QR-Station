@@ -32,6 +32,8 @@ public:
   bool isContentVisible(); // true if screen is on
   bool isShowingNotification = false;
   unsigned long notificationStart = 0;
+  bool isShowingBrightness = false;
+  unsigned long brightnessIndicatorStart = 0;
 
 private:
   Adafruit_ST7735 tft;

@@ -21,15 +21,17 @@ void DisplayManager::begin() {
 }
 
 void DisplayManager::update() {
-  // Auto-hide brightness indicator
-  // Logic for this moved to main loop or handled here?
-  // Let's keep update simple for now
-  
   // Handle notification timeout
   if (isShowingNotification && (millis() - notificationStart > 8000)) {
     isShowingNotification = false;
     displayMode(currentMode);
     Serial.println("Notification closed");
+  }
+
+  // Handle brightness indicator timeout
+  if (isShowingBrightness && (millis() - brightnessIndicatorStart > 2000)) {
+    isShowingBrightness = false;
+    displayMode(currentMode);
   }
 
   // Update status dots periodically
@@ -266,6 +268,10 @@ void DisplayManager::decreaseBrightness() {
 
 void DisplayManager::showBrightnessIndicator() {
   if (!isPowerOn) return;
+
+  isShowingBrightness = true;
+  brightnessIndicatorStart = millis();
+
   int barWidth = 80;
   int barHeight = 10;
   int barX = (128 - barWidth) / 2;

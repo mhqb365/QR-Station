@@ -82,3 +82,7 @@ void ButtonManager::setLongPressHandler(int btnIndex, ButtonCallback cb) {
 void ButtonManager::setDoubleClickHandler(int btnIndex, ButtonCallback cb) {
     if(btnIndex >=0 && btnIndex < 4) buttons[btnIndex].onDoublePress = cb;
 }
+
+void ButtonManager::setHandled(int btnIndex) {
+    if(btnIndex >=0 && btnIndex < 4) buttons[btnIndex].handled = true;
+}

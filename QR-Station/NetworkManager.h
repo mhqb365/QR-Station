@@ -30,6 +30,7 @@ public:
   void loadSettings();
   void saveWifiList(String json);
   void addOrUpdateWifi(String ssid, String pass);
+  String getWifiPass(String ssid);
   
   String getSavedWifiList();
   
