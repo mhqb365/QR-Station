@@ -2,7 +2,9 @@
 
 **QR Station** là một dự án mã nguồn mở sử dụng ESP32-C3 và màn hình TFT để hiển thị mã QR thanh toán ngân hàng một cách chuyên nghiệp và tiện lợi. Thiết bị hỗ trợ hiển thị mã QR tĩnh và động, tích hợp thông báo giao dịch qua giao thức MQTT
 
-![QR Station](./device.jpg)
+![QR Station](./about/device.jpg)
+![Control 1](./about/control-1.png)
+![Control 2](./about/control-2.png)
 
 ## Tính năng chính
 
@@ -11,6 +13,7 @@
 - **Thông báo giao dịch**: Nhận và hiển thị thông báo chuyển khoản tức thì (dùng API của [Pay2S](https://pay2s.vn/?aff=1073))
 - **Web Dashboard**: Giao diện cấu hình WiFi, tài khoản ngân hàng, MQTT và cập nhật Firmware trực tiếp trên trình duyệt
 - **Browser Extension**: Tích hợp nút "Đẩy mã QR" ngay trên trang KiotViet để gửi dữ liệu sang thiết bị
+- **Phát âm thanh**: Browser Extension sẽ phát âm thanh khi có thông báo giao dịch
 
 ## Phần cứng
 
@@ -45,7 +48,7 @@
 - Đè nút K3 trong 3s để reset thiết bị về trạng thái trống
 
 ### 3. Server Webhook
-- Thư mục `server/` chứa mã nguồn Node.js để nhận webhook từ các dịch vụ ngân hàng và gửi sang MQTT.
+- Thư mục `server/` chứa mã nguồn Node.js để nhận webhook từ các dịch vụ ngân hàng và gửi sang MQTT
 - Đổi tên `.env.example` thành `.env` và cấu hình các thông số cần thiết
 - Chạy lệnh: `npm install` và `node index.js`
 - Lấy webhook token ở [Pay2S](https://pay2s.vn/?aff=1073)

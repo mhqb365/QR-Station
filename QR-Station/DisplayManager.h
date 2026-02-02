@@ -19,6 +19,7 @@ public:
   void showNotification(long amount, const char* content, const char* gateway, const char* account);
   void displayBankQR(const String &qrText, const String &bankName, const String &accountNumber, const String &accountName);
   void handleIPDisplay();
+  void handleConfigModeDisplay();
   
   void togglePower();
   void togglePowerOnOnly();
@@ -29,7 +30,7 @@ public:
   
   void loadBrightnessSettings();
   
-  bool isContentVisible(); // true if screen is on
+  bool isContentVisible();
   bool isShowingNotification = false;
   unsigned long notificationStart = 0;
   bool isShowingBrightness = false;

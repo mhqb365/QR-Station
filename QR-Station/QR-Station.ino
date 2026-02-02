@@ -123,27 +123,11 @@ void onK4DoubleClick() {
 }
 
 void onK4LongPress() {
-    if (isPowerOn) {
-        // Enter Config Mode (OTA/AP)
-        WiFi.softAP("QR Station", "88888888");
-        IPAddress IP = WiFi.softAPIP();
-        
-        // Use direct TFT calls via display manager helper or custom?
-        // Let's rely on a simple visual indication
-        displayManager.displayBankQR("CONFIG MODE", "Connect to WiFi", "QR Station", IP.toString());
-        
-        webManager.startAP();
-        
-        // Blocking loop for config mode? Or state machine?
-        // Original code used a blocking loop inside handleOTA().
-        // For best refactor, we should switch to a CONFIG state variable.
-        // But for simplicity and to match logic, let's keep it blocking or just start AP
-        // and let the main loop handle it?
-        // If we start AP, the main loop process webManager.update() which handles requests.
-        // So we just need to ensure we don't switch display back.
-        // Let's add a global State?
-        // For now, simpler: Just show info.
-    }
+  if (isPowerOn) {
+    WiFi.softAP("QR Station", "88888888");
+    displayManager.handleConfigModeDisplay();
+    webManager.startAP();
+  }
 }
 
 

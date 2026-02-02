@@ -299,26 +299,49 @@ void DisplayManager::handleIPDisplay() {
   tft.setTextColor(ST77XX_CYAN);
   tft.setTextSize(1);
   
-  tft.setCursor(10, 10);
+  tft.setCursor(10, 20);
   tft.println("SYSTEM INFO");
   
   tft.setTextColor(ST77XX_GREEN);
-  tft.setCursor(10, 30);
+  tft.setCursor(10, 40);
   tft.println("Device IP");
   
   if (networkManager.isWifiConnected()) {
     tft.setTextColor(ST77XX_WHITE);
-    tft.setCursor(10, 42);
+    tft.setCursor(10, 50);
     tft.println(WiFi.localIP().toString());
   } else {
     tft.setTextColor(ST77XX_RED);
-    tft.setCursor(10, 42);
+    tft.setCursor(10, 50);
     tft.println("Not connect WIFI");
   }
+}
 
-  tft.setTextColor(ST77XX_RED);
-  tft.setCursor(10, 110);
-  tft.println("Hold K1 to exit");
+void DisplayManager::handleConfigModeDisplay() {
+  tft.fillScreen(ST77XX_BLACK);
+  tft.setTextColor(ST77XX_CYAN);
+  tft.setTextSize(1);
+  
+  tft.setCursor(10, 20);
+  tft.println("CONFIG MODE");
+  
+  tft.setTextColor(ST77XX_GREEN);
+  tft.setCursor(10, 40);
+  tft.println("Connect WiFi");
+  
+  tft.setTextColor(ST77XX_WHITE);
+  tft.setCursor(10, 50);
+  tft.println("SSID: QR Station");
+  tft.setCursor(10, 60);
+  tft.println("Pass: 88888888");
+
+  tft.setTextColor(ST77XX_GREEN);
+  tft.setCursor(10, 75);
+  tft.println("Access to");
+  
+  tft.setTextColor(ST77XX_WHITE);
+  tft.setCursor(10, 85);
+  tft.println("192.168.4.1");
 }
 
 bool DisplayManager::isContentVisible() {
