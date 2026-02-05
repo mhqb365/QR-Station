@@ -84,7 +84,7 @@
       <div class="qr-modal-container">
         <div class="qr-modern-header">
            <div class="qr-modern-title">
-             QUÉT MÃ THANH TOÁN
+            QR Station
            </div>
            <button class="qr-modal-close" id="qr-modal-close">&times;</button>
         </div>
@@ -97,6 +97,8 @@
                <img src="${qrUrl}" class="qr-modal-image" id="qr-modal-image" alt="VietQR">
             </div>
             
+            <div class="qr-subtitle" style="text-align: center; color: #666; font-size: 14px; margin-bottom: 10px; font-weight: 500;">Quét mã để thanh toán</div>
+
             <div class="qr-amount-box">
                 <div class="qr-amount-value">${formatMoney(amount)}</div>
             </div>
@@ -412,29 +414,26 @@
         "last_owner",
         "qr_default_content",
       ]);
-      console.log(settings);
+
       const host = settings.esp_ip;
       const bin = settings.last_bin || "";
       const acc = settings.last_acc;
       const owner = settings.last_owner || "";
 
       let desc = settings.qr_default_content;
-      if (desc === undefined || desc === null) {
+      if (desc === undefined || desc === null || desc === "") {
         desc = "Chuyen tien";
       }
 
-      if (!settings.esp_ip || !settings.last_acc) {
+      if (!settings.last_acc) {
         alert(
-          "Bạn chưa cài đặt thiết bị QR Station trong extension\nVui lòng mở extension để thiết lập",
+          "Bạn chưa chọn tài khoản nhận trong extension\nVui lòng mở extension để thiết lập",
         );
         resetBtn();
         return;
       }
-      const url = `http://${host}/api/qr?bin=${bin}&acc=${acc}&amt=${amount}&on=${encodeURIComponent(owner)}&desc=${encodeURIComponent(desc)}`;
 
-      log("Pushing via background: " + url);
-
-      // Show QR on screen immediately (parallel)
+      // 1. Show QR on screen immediately
       showScreenQr({
         bin,
         acc,
@@ -443,36 +442,37 @@
         desc,
       });
 
-      chrome.runtime.sendMessage(
-        { action: "push-qr", url: url },
-        (response) => {
-          if (chrome.runtime.lastError) {
-            log("Runtime error: " + chrome.runtime.lastError.message);
-            alert("Lỗi kết nối extension: " + chrome.runtime.lastError.message);
-            resetBtn();
-            return;
-          }
+      // 2. Push to hardware ONLY if IP is provided
+      if (host) {
+        const url = `http://${host}/api/qr?bin=${bin}&acc=${acc}&amt=${amount}&on=${encodeURIComponent(owner)}&desc=${encodeURIComponent(desc)}`;
+        log("Pushing to hardware: " + url);
 
-          if (response && response.success) {
-            btn.innerHTML = "<span>✅</span>";
-            btn.style.backgroundColor = "#4caf50";
-
-            setTimeout(() => {
+        chrome.runtime.sendMessage(
+          { action: "push-qr", url: url },
+          (response) => {
+            if (chrome.runtime.lastError) {
+              log("Runtime error: " + chrome.runtime.lastError.message);
+              // Not alerting here as QR is already on screen
               resetBtn();
-            }, 2000);
-          } else {
-            const errorMsg = response
-              ? response.error || "HTTP " + response.status
-              : "Không có phản hồi từ background";
-            alert(
-              "Lỗi từ thiết bị: " +
-                errorMsg +
-                "\nVui lòng kiểm tra lại thiết bị QR Station",
-            );
-            resetBtn();
-          }
-        },
-      );
+              return;
+            }
+
+            if (response && response.success) {
+              btn.innerHTML = "<span>✅</span>";
+              btn.style.backgroundColor = "#4caf50";
+              setTimeout(() => resetBtn(), 2000);
+            } else {
+              log("Hardware push failed, but QR is visible on screen");
+              resetBtn();
+            }
+          },
+        );
+      } else {
+        // No hardware IP, just show success for screen display
+        btn.innerHTML = "<span>✅</span>";
+        btn.style.backgroundColor = "#4caf50";
+        setTimeout(() => resetBtn(), 2000);
+      }
     } catch (err) {
       log("Error in handlePushQr: " + err);
       alert("Lỗi xử lý: " + err.message);

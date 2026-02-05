@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "QR Station Link",
-  "version": "1.1",
-  "description": "Đẩy mã QR thanh toán lên thiết bị QR Station",
+  "version": "1.2",
+  "description": "Tạo QR thanh toán, hiển thị & đọc thông báo nhận tiền trên KiotViet, liên kết thiết bị QR Station",
   "permissions": [
     "storage",
     "activeTab",

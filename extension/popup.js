@@ -8,7 +8,62 @@ document.addEventListener("DOMContentLoaded", () => {
   const espUserInput = document.getElementById("esp_user");
   const espPassInput = document.getElementById("esp_pass");
 
-  let deviceAccounts = [];
+  // Tab Logic
+  const tabs = document.querySelectorAll(".tab");
+  const tabContents = document.querySelectorAll(".tab-content");
+
+  const BANK_MAP = {
+    970436: "Vietcombank",
+    970415: "VietinBank",
+    970418: "BIDV",
+    970405: "Agribank",
+    970422: "MB Bank",
+    970407: "Techcombank",
+    970423: "TPBank",
+    970432: "VPBank",
+    970403: "Sacombank",
+    970441: "VIB",
+    970443: "SHB",
+    970428: "NAM A BANK",
+    970437: "HDBank",
+    970454: "VietCapitalBank",
+    970429: "SCB",
+    970452: "KienLongBank",
+    970430: "PGBank",
+    970448: "OCB",
+    970431: "Eximbank",
+    970425: "ABBANK",
+    970416: "ACB",
+    970427: "VietABank",
+    970440: "SEABank",
+    970419: "NCB",
+    970438: "BaoVietBank",
+    970406: "DongA Bank",
+    970433: "VietBank",
+    970424: "Shinhan Bank",
+    970412: "PVcomBank",
+    970400: "SaigonBank",
+    970449: "LPBank",
+    970414: "OceanBank",
+    970439: "Public Bank",
+    970455: "Woori Bank",
+    970408: "GPBank",
+    970457: "Wooribank",
+    970426: "MSB",
+  };
+
+  tabs.forEach((tab) => {
+    tab.addEventListener("click", () => {
+      tabs.forEach((t) => t.classList.remove("active"));
+      tabContents.forEach((c) => c.classList.remove("active"));
+
+      tab.classList.add("active");
+      const contentId = `tab-${tab.dataset.tab}`;
+      document.getElementById(contentId).classList.add("active");
+    });
+  });
+
+  let localAccounts = [];
 
   // Load saved settings
   chrome.storage.local.get(
@@ -26,20 +81,14 @@ document.addEventListener("DOMContentLoaded", () => {
       "mqtt_error",
       "qr_default_content",
       "mqtt_sound",
+      "local_accounts",
     ],
     (res) => {
       console.log("Popup loaded, MQTT status:", res.mqtt_status);
-      if (res.esp_ip) {
-        ipInput.value = res.esp_ip;
-      }
-      if (res.esp_user)
-        document.getElementById("esp_user").value = res.esp_user;
-      if (res.esp_pass)
-        document.getElementById("esp_pass").value = res.esp_pass;
+      if (res.esp_ip) ipInput.value = res.esp_ip;
+      if (res.esp_user) espUserInput.value = res.esp_user;
+      if (res.esp_pass) espPassInput.value = res.esp_pass;
 
-      if (res.esp_ip) {
-        fetchAccounts(res.esp_ip, res.last_acc_idx);
-      }
       if (res.mqtt_host)
         document.getElementById("mqtt_host").value = res.mqtt_host;
       if (res.mqtt_port)
@@ -50,107 +99,134 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("mqtt_pass").value = res.mqtt_pass;
 
       const mqttEnabled = document.getElementById("mqtt_enabled");
+      const mqttSound = document.getElementById("mqtt_sound");
+
       mqttEnabled.checked = res.mqtt_enabled !== false;
       toggleMqttFields(mqttEnabled.checked);
       updateMqttStatusDisplay(res.mqtt_status, res.mqtt_error);
-      validateMqttInputs();
-      validateEspInputs();
+      updateMqttSoundState(mqttEnabled.checked);
+
+      if (res.local_accounts) {
+        localAccounts = res.local_accounts;
+      }
+      renderAccountSelect(res.last_acc_idx);
+      renderAccountList();
 
       const qrContentInput = document.getElementById("qr_default_content");
       if (res.qr_default_content !== undefined) {
         qrContentInput.value = res.qr_default_content;
-      } else {
-        qrContentInput.value = "";
       }
       qrContentInput.addEventListener("input", (e) => {
         chrome.storage.local.set({ qr_default_content: e.target.value });
       });
-      const mqttSound = document.getElementById("mqtt_sound");
+
       if (mqttSound) {
         mqttSound.checked = res.mqtt_sound !== false;
         mqttSound.addEventListener("change", (e) => {
           chrome.storage.local.set({ mqtt_sound: e.target.checked });
         });
       }
+
+      validateEspInputs();
     },
   );
-
-  let isMqttSaving = false;
-
-  function updateMqttStatusDisplay(status, error) {
-    const indicator = document.getElementById("mqtt_status_indicator");
-    const mqttInfo = document.getElementById("mqtt_info");
-    if (!indicator) return;
-
-    indicator.className = "status-dot " + (status || "disconnected");
-    indicator.title = status
-      ? status.charAt(0).toUpperCase() + status.slice(1)
-      : "Disconnected";
-
-    if (mqttInfo) {
-      if (status === "connected" && isMqttSaving) {
-        showStatus("✅ Kết nối MQTT thành công", "success", "mqtt_info");
-        isMqttSaving = false;
-      } else if (status === "connecting" && isMqttSaving) {
-        showStatus("⏳ Đang kết nối", "info", "mqtt_info");
-      } else if (status === "error") {
-        showStatus(
-          "❌ Lỗi: " + (error || "Không thể kết nối"),
-          "error",
-          "mqtt_info",
-        );
-        isMqttSaving = false;
-      } else if (status === "disconnected") {
-        // Nếu là disconnected mà trước đó đang hiện lỗi thì KHÔNG ẩn lỗi đi
-        if (!mqttInfo.textContent.includes("❌ Lỗi:")) {
-          mqttInfo.style.display = "none";
-        }
-      }
-    }
-
-    if (status === "error" && error) {
-      indicator.title += ": " + error;
-    }
-  }
-
-  // Listen for storage changes to update status in real-time
-  chrome.storage.onChanged.addListener((changes) => {
-    if (changes.mqtt_status) {
-      const newStatus = changes.mqtt_status.newValue;
-      // Trùng với trạng thái hiện tại của UI chấm tròn thì luôn cập nhật
-      updateMqttStatusDisplay(newStatus, null);
-    }
-    if (changes.mqtt_error) {
-      chrome.storage.local.get(["mqtt_status"], (res) => {
-        updateMqttStatusDisplay(res.mqtt_status, changes.mqtt_error.newValue);
-      });
-    }
-  });
 
   function validateEspInputs() {
     const user = espUserInput.value.trim();
     const pass = espPassInput.value.trim();
     searchBtn.disabled = !user || !pass;
-    if (searchBtn.disabled) {
-      searchBtn.style.opacity = "0.5";
-      searchBtn.style.cursor = "not-allowed";
-    } else {
-      searchBtn.style.opacity = "1";
-      searchBtn.style.cursor = "pointer";
-    }
+    searchBtn.style.opacity = searchBtn.disabled ? "0.5" : "1";
+    searchBtn.style.cursor = searchBtn.disabled ? "not-allowed" : "pointer";
   }
 
   [espUserInput, espPassInput].forEach((el) => {
     el.addEventListener("input", validateEspInputs);
   });
 
-  function validateMqttInputs() {
-    const host = document.getElementById("mqtt_host").value.trim();
-    const port = document.getElementById("mqtt_port").value.trim();
-    const enabled = document.getElementById("mqtt_enabled").checked;
-
-    document.getElementById("mqtt_save").disabled = !enabled || !host || !port;
+  function updateMqttSoundState(enabled) {
+    const mqttSound = document.getElementById("mqtt_sound");
+    if (!mqttSound) return;
+    mqttSound.disabled = !enabled;
+    const slider = mqttSound.parentElement.querySelector(".slider");
+    if (slider) {
+      slider.style.opacity = enabled ? "1" : "0.5";
+      slider.style.cursor = enabled ? "pointer" : "not-allowed";
+    }
   }
+
+  let isMqttSaving = false;
+
+  function updateMqttStatusDisplay(status, error, attempt) {
+    const indicators = document.querySelectorAll(".mqtt-status-indicator");
+    const mqttInfo = document.getElementById("mqtt_info");
+    if (indicators.length === 0) return;
+
+    indicators.forEach((indicator) => {
+      indicator.className =
+        "status-dot " + (status || "disconnected") + " mqtt-status-indicator";
+      indicator.title = status
+        ? status.charAt(0).toUpperCase() + status.slice(1)
+        : "Disconnected";
+    });
+
+    const mqttSaveBtn = document.getElementById("mqtt_save");
+
+    if (mqttSaveBtn) {
+      const isConnecting = status === "connecting";
+      mqttSaveBtn.disabled = isConnecting;
+      mqttSaveBtn.style.opacity = isConnecting ? "0.5" : "1";
+      mqttSaveBtn.style.cursor = isConnecting ? "not-allowed" : "pointer";
+      // Change text to reflect state if desired, or keep as is.
+    }
+
+    if (mqttInfo) {
+      if (status === "connected") {
+        showStatus("✅ Connected successfully", "success", "mqtt_info");
+        isMqttSaving = false;
+      } else if (status === "connecting") {
+        const curAttempt = attempt || 1;
+        showStatus(
+          `⏳ Connecting (Attempt ${curAttempt}/3)...`,
+          "info",
+          "mqtt_info",
+        );
+      } else if (status === "error") {
+        showStatus(
+          "❌ Error: " + (error || "Connection failed"),
+          "error",
+          "mqtt_info",
+        );
+        isMqttSaving = false;
+      } else if (status === "disconnected") {
+        if (
+          !mqttInfo.textContent.includes("❌ Error:") &&
+          !mqttInfo.classList.contains("success")
+        ) {
+          mqttInfo.style.display = "none";
+        }
+      }
+    }
+  }
+
+  chrome.storage.onChanged.addListener((changes) => {
+    if (changes.mqtt_status || changes.mqtt_attempt || changes.mqtt_error) {
+      chrome.storage.local.get(
+        ["mqtt_status", "mqtt_error", "mqtt_attempt"],
+        (res) => {
+          updateMqttStatusDisplay(
+            res.mqtt_status,
+            res.mqtt_error,
+            res.mqtt_attempt,
+          );
+        },
+      );
+    }
+    if (changes.local_accounts) {
+      localAccounts = changes.local_accounts.newValue || [];
+      renderAccountSelect();
+      renderAccountList();
+    }
+  });
 
   function toggleMqttFields(enabled) {
     document.getElementById("mqtt_fields").style.opacity = enabled
@@ -159,266 +235,455 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("mqtt_fields").style.pointerEvents = enabled
       ? "auto"
       : "none";
-    validateMqttInputs();
   }
 
-  // Hide status and validate when user starts typing new info
-  ["mqtt_host", "mqtt_port", "mqtt_user", "mqtt_pass"].forEach((id) => {
-    document.getElementById(id).addEventListener("input", () => {
-      document.getElementById("mqtt_info").style.display = "none";
-      isMqttSaving = false;
-      validateMqttInputs();
+  // --- MQTT EDITING STATE ---
+  const mqttInputs = ["mqtt_host", "mqtt_port", "mqtt_user", "mqtt_pass"].map(
+    (id) => document.getElementById(id),
+  );
+
+  mqttInputs.forEach((el) => {
+    if (!el) return;
+    el.addEventListener("focus", () => {
+      chrome.storage.local.set({ mqtt_is_editing: true });
     });
+    // We don't clear on blur because user might be switching between host/port
   });
 
-  // MQTT Settings Listeners
+  // Clear editing state when popup is closed or hidden
+  window.addEventListener("unload", () => {
+    chrome.storage.local.set({ mqtt_is_editing: false });
+  });
+
+  // Clean MQTT settings
+  document.getElementById("mqtt-clean")?.addEventListener("click", () => {
+    if (confirm("Clear all MQTT settings?")) {
+      document.getElementById("mqtt_host").value = "";
+      document.getElementById("mqtt_port").value = "";
+      document.getElementById("mqtt_user").value = "";
+      document.getElementById("mqtt_pass").value = "";
+
+      chrome.storage.local.set({
+        mqtt_host: "",
+        mqtt_port: "",
+        mqtt_user: "",
+        mqtt_pass: "",
+        mqtt_reconnect: Date.now(),
+        mqtt_status: "disconnected",
+      });
+
+      showStatus("MQTT settings cleared", "success", "mqtt_info");
+    }
+  });
+
+  // Clean Device settings
+  document.getElementById("device-clean")?.addEventListener("click", () => {
+    if (confirm("Clear all Device settings?")) {
+      document.getElementById("ip").value = "";
+      document.getElementById("esp_user").value = "";
+      document.getElementById("esp_pass").value = "";
+
+      chrome.storage.local.set({
+        esp_ip: "",
+        esp_user: "",
+        esp_pass: "",
+      });
+
+      showStatus("Device settings cleared", "success", "device_info");
+    }
+  });
+
   document.getElementById("mqtt_save").addEventListener("click", () => {
     const host = document.getElementById("mqtt_host").value.trim();
     const port = document.getElementById("mqtt_port").value.trim();
-
     if (!host || !port) return;
 
     isMqttSaving = true;
-    showStatus("⏳ Đang kết nối...", "info", "mqtt_info");
+    showStatus("⏳ Connecting...", "info", "mqtt_info");
 
-    const settings = {
+    // Clear editing state before manual connect
+    chrome.storage.local.set({
+      mqtt_is_editing: false,
       mqtt_host: host,
       mqtt_port: port,
       mqtt_user: document.getElementById("mqtt_user").value.trim(),
       mqtt_pass: document.getElementById("mqtt_pass").value.trim(),
-      mqtt_reconnect: Date.now(), // Trigger change in background.js
-    };
-
-    console.log("Saving MQTT settings:", settings);
-    chrome.storage.local.set(settings);
+      mqtt_reconnect: Date.now(),
+    });
   });
 
   document.getElementById("mqtt_enabled").addEventListener("change", (e) => {
-    const enabled = e.target.checked;
-    chrome.storage.local.set({ mqtt_enabled: enabled });
-    toggleMqttFields(enabled);
+    chrome.storage.local.set({ mqtt_enabled: e.target.checked });
+    toggleMqttFields(e.target.checked);
+    updateMqttSoundState(e.target.checked);
   });
 
-  async function fetchAccounts(ip, savedIdx = null) {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3000);
+  // --- ACCOUNT MANAGEMENT ---
+  const accountModal = document.getElementById("account-modal");
+  const accountListDiv = document.getElementById("account-list");
+  const addAccountBtn = document.getElementById("add-account");
+  const modalCancelBtn = document.getElementById("modal-cancel");
+  const modalSaveBtn = document.getElementById("modal-save");
 
-      const user = document.getElementById("esp_user").value.trim();
-      const pass = document.getElementById("esp_pass").value.trim();
-      const headers = {};
-      if (user || pass) {
-        headers["Authorization"] = "Basic " + btoa(user + ":" + pass);
-      }
-
-      const res = await fetch(`http://${ip}/api/accounts`, {
-        signal: controller.signal,
-        headers: headers,
-      });
-
-      if (res.ok) {
-        deviceAccounts = await res.json();
-        renderAccountSelect(savedIdx);
-        chrome.storage.local.set({
-          esp_ip: ip,
-          esp_user: document.getElementById("esp_user").value.trim(),
-          esp_pass: document.getElementById("esp_pass").value.trim(),
-        });
-        return true;
-      }
-    } catch (e) {
-      console.log("Không thể kết nối thiết bị:", e);
-    }
-    return false;
-  }
-
-  function renderAccountSelect(savedIdx) {
-    targetAccSelect.innerHTML = "";
-    if (deviceAccounts.length === 0) {
-      targetAccSelect.innerHTML =
-        '<option value="">-- Thiết bị chưa có tài khoản --</option>';
+  function renderAccountList() {
+    accountListDiv.innerHTML = "";
+    if (localAccounts.length === 0) {
+      accountListDiv.innerHTML =
+        '<div style="text-align:center;color:#666;font-size:0.8rem;padding:10px;">No account found</div>';
       return;
     }
 
-    deviceAccounts.forEach((acc, index) => {
+    localAccounts.forEach((acc, idx) => {
+      const item = document.createElement("div");
+      item.className = "account-item";
+      const bankName = BANK_MAP[acc.bin] || `BIN: ${acc.bin}`;
+      item.innerHTML = `
+        <div class="account-info">
+          <div class="name">${acc.name}</div>
+          <div class="details">${acc.acc} - ${bankName}</div>
+        </div>
+        <div class="account-actions">
+          <button class="btn-small edit-btn" data-idx="${idx}">✏️</button>
+          <button class="btn-small delete-btn" data-idx="${idx}" style="color:#ff4444;">🗑️</button>
+        </div>
+      `;
+      accountListDiv.appendChild(item);
+    });
+
+    document.querySelectorAll(".edit-btn").forEach((btn) => {
+      btn.addEventListener("click", () => openAccountModal(btn.dataset.idx));
+    });
+
+    document.querySelectorAll(".delete-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        if (confirm("Delete this account?")) {
+          localAccounts.splice(btn.dataset.idx, 1);
+          chrome.storage.local.set({ local_accounts: localAccounts });
+        }
+      });
+    });
+  }
+
+  function renderAccountSelect(savedIdx = null) {
+    targetAccSelect.innerHTML = "";
+    if (localAccounts.length === 0) {
+      targetAccSelect.innerHTML =
+        '<option value="">-- No account found --</option>';
+      return;
+    }
+
+    localAccounts.forEach((acc, index) => {
       const opt = document.createElement("option");
       opt.value = index;
-      opt.textContent = `${acc.on || acc.name} - ${acc.acc}`;
+      opt.textContent = `${acc.name} - ${acc.acc}`;
       targetAccSelect.appendChild(opt);
     });
 
-    if (savedIdx !== null && deviceAccounts[savedIdx]) {
+    if (savedIdx !== null && localAccounts[savedIdx]) {
       targetAccSelect.value = savedIdx;
     } else {
       updateSavedAccount();
     }
   }
 
-  targetAccSelect.addEventListener("change", () => {
-    updateSavedAccount();
+  function openAccountModal(idx = null) {
+    const title = document.getElementById("modal-title");
+    const editIdx = document.getElementById("edit-idx");
+    const accName = document.getElementById("acc-name");
+    const accNum = document.getElementById("acc-num");
+    const accBin = document.getElementById("acc-bin");
+
+    if (idx !== null) {
+      title.textContent = "Edit account";
+      editIdx.value = idx;
+      accName.value = localAccounts[idx].name;
+      accNum.value = localAccounts[idx].acc;
+      accBin.value = localAccounts[idx].bin;
+    } else {
+      title.textContent = "Add account";
+      editIdx.value = "";
+      accName.value = "";
+      accNum.value = "";
+      accBin.value = "";
+    }
+    accountModal.classList.add("active");
+  }
+
+  addAccountBtn.addEventListener("click", () => openAccountModal());
+  modalCancelBtn.addEventListener("click", () =>
+    accountModal.classList.remove("active"),
+  );
+
+  modalSaveBtn.addEventListener("click", () => {
+    const idx = document.getElementById("edit-idx").value;
+    const name = document.getElementById("acc-name").value.trim();
+    const acc = document.getElementById("acc-num").value.trim();
+    const bin = document.getElementById("acc-bin").value.trim();
+
+    if (!name || !acc || !bin) {
+      alert("Please enter full information");
+      return;
+    }
+
+    const newAcc = { name, acc, bin };
+    if (idx !== "") {
+      localAccounts[idx] = newAcc;
+    } else {
+      localAccounts.push(newAcc);
+    }
+
+    chrome.storage.local.set({ local_accounts: localAccounts });
+    accountModal.classList.remove("active");
   });
+
+  targetAccSelect.addEventListener("change", () => updateSavedAccount());
 
   function updateSavedAccount() {
     const idx = targetAccSelect.value;
-    if (idx !== "" && deviceAccounts[idx]) {
-      const acc = deviceAccounts[idx];
+    if (idx !== "" && localAccounts[idx]) {
+      const acc = localAccounts[idx];
       chrome.storage.local.set({
         last_acc_idx: idx,
         last_bin: acc.bin,
         last_acc: acc.acc,
-        last_owner: acc.on || acc.name || "",
+        last_owner: acc.name,
       });
     }
   }
 
-  // --- LOGIC QUÉT THIẾT BỊ NÂNG CAO ---
+  // --- IMPORT / EXPORT JSON ---
+  const fileInput = document.getElementById("file-input");
+  document
+    .getElementById("import-json")
+    .addEventListener("click", () => fileInput.click());
+
+  fileInput.addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = JSON.parse(event.target.result);
+        if (Array.isArray(data)) {
+          // Support both 'name' and 'on' for owner name
+          const mappedData = data
+            .map((a) => ({
+              name: a.name || a.on || "No name",
+              acc: a.acc || "",
+              bin: a.bin || "",
+            }))
+            .filter((a) => a.acc && a.bin);
+
+          if (mappedData.length > 0) {
+            localAccounts = [...localAccounts, ...mappedData];
+            chrome.storage.local.set({ local_accounts: localAccounts });
+            showStatus(
+              "✅ Imported " + mappedData.length + " accounts",
+              "success",
+            );
+          } else {
+            alert(
+              "File does not contain valid account data (requires acc and bin)",
+            );
+          }
+        }
+      } catch (err) {
+        alert("Error reading JSON file");
+      }
+    };
+    reader.readAsText(file);
+  });
+
+  document.getElementById("export-json").addEventListener("click", () => {
+    if (localAccounts.length === 0) return;
+    const blob = new Blob([JSON.stringify(localAccounts, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "qr_station_accounts.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  // --- DEVICE SCAN & PUSH ---
   async function checkIp(ip) {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 1500);
-      const user = document.getElementById("esp_user").value.trim();
-      const pass = document.getElementById("esp_pass").value.trim();
+      const user = espUserInput.value.trim();
+      const pass = espPassInput.value.trim();
       const headers = {};
-      if (user || pass) {
+      if (user || pass)
         headers["Authorization"] = "Basic " + btoa(user + ":" + pass);
-      }
 
-      const response = await fetch(`http://${ip}/api/info`, {
+      const response = await fetch(`http://${ip}/api/accounts`, {
         signal: controller.signal,
-        headers: headers,
+        headers,
       });
+
+      if (response.status === 401) return 401; // Auth failed
+
       if (response.ok) {
-        const data = await response.json();
-        if (data.name === "QR Station") return true;
+        return 200; // Success and Authed
       }
     } catch (e) {}
-    return false;
+    return 0; // Not found or error
   }
 
   searchBtn.addEventListener("click", async () => {
-    showStatus("🔍 Đang tìm thiết bị QR Station", "info");
+    showStatus("🔍 Searching device...", "info", "device_info");
     searchBtn.disabled = true;
 
-    // 1. Thử host hiện tại và mDNS
     const currentIp = ipInput.value.trim();
     const initHosts = [];
     if (currentIp) initHosts.push(currentIp);
     initHosts.push("qrstation.local");
 
     for (const h of initHosts) {
-      if (await checkIp(h)) {
+      const status = await checkIp(h);
+      if (status === 200) {
         ipInput.value = h;
-        await fetchAccounts(h);
-        showStatus("✅ Đã tìm thấy: " + h, "success");
+        chrome.storage.local.set({
+          esp_ip: h,
+          esp_user: espUserInput.value.trim(),
+          esp_pass: espPassInput.value.trim(),
+        });
+        showStatus("✅ Connected: " + h, "success", "device_info");
         searchBtn.disabled = false;
+        validateEspInputs();
+        return;
+      } else if (status === 401) {
+        showStatus("❌ Wrong User or Pass: " + h, "error", "device_info");
+        searchBtn.disabled = false;
+        validateEspInputs();
         return;
       }
     }
 
-    // 2. Quét mạng nội bộ nâng cao
-    showStatus("📡 Đang tìm trong mạng nội bộ", "info");
+    showStatus("📡 Scanning network...", "info", "device_info");
     const subnets = ["192.168.1", "192.168.10", "192.168.100", "192.168.0"];
     const BATCH_SIZE = 50;
+    let authFailedIp = null;
 
     for (const subnet of subnets) {
-      showStatus(`📡 Đang tìm ${subnet}.x`, "info");
       for (let i = 1; i < 255; i += BATCH_SIZE) {
         const batch = [];
-        for (let j = i; j < i + BATCH_SIZE && j < 255; j++) {
+        for (let j = i; j < i + BATCH_SIZE && j < 255; j++)
           batch.push(`${subnet}.${j}`);
-        }
 
         const results = await Promise.all(
           batch.map(async (ip) => {
-            const found = await checkIp(ip);
-            return found ? ip : null;
+            const status = await checkIp(ip);
+            return { ip, status };
           }),
         );
 
-        const foundIp = results.find((r) => r !== null);
-        if (foundIp) {
-          ipInput.value = foundIp;
-          await fetchAccounts(foundIp);
-          showStatus("✅ Đã tìm thấy: " + foundIp, "success");
+        const success = results.find((r) => r.status === 200);
+        if (success) {
+          ipInput.value = success.ip;
+          chrome.storage.local.set({
+            esp_ip: success.ip,
+            esp_user: espUserInput.value.trim(),
+            esp_pass: espPassInput.value.trim(),
+          });
+          showStatus("✅ Connected: " + success.ip, "success", "device_info");
           searchBtn.disabled = false;
+          validateEspInputs();
           return;
         }
+
+        const authFailed = results.find((r) => r.status === 401);
+        if (authFailed) authFailedIp = authFailed.ip;
       }
     }
 
-    showStatus("❌ Không tìm thấy thiết bị QR Station", "error");
+    if (authFailedIp) {
+      showStatus(
+        "❌ Wrong User or Pass: " + authFailedIp,
+        "error",
+        "device_info",
+      );
+    } else {
+      showStatus("❌ Device not found", "error", "device_info");
+    }
     searchBtn.disabled = false;
+    validateEspInputs();
   });
 
   pushBtn.addEventListener("click", async () => {
     const ip = ipInput.value.trim();
     const idx = targetAccSelect.value;
     const amt = amtInput.value.trim();
-    // const desc = descInput.value.trim(); // Old logic
-
-    // New logic mirroring content.js
     const desc = document.getElementById("qr_default_content").value.trim();
 
-    if (!ip || idx === "") {
-      showStatus("Vui lòng kết nối thiết bị QR Station", "error");
+    if (idx === "") {
+      showStatus("Please select account", "error");
       return;
     }
 
-    const account = deviceAccounts[idx];
-    showStatus("🚀 Đang tạo", "info");
+    const account = localAccounts[idx];
+    showStatus("🚀 Creating QR...", "info");
 
     const qrData = {
       bin: account.bin,
       acc: account.acc,
       amount: amt,
-      owner: account.on || account.name,
+      owner: account.name,
       desc: desc,
     };
 
-    // Show on screen (Content Script)
+    // Show in browser tabs (Content Script)
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (tabs.length > 0) {
         chrome.tabs.sendMessage(
           tabs[0].id,
           { action: "show-qr-modal", data: qrData },
-          (response) => {
-            if (chrome.runtime.lastError) {
+          () => {
+            if (chrome.runtime.lastError)
               console.log(
-                "Could not send to content script:",
+                "Content script error:",
                 chrome.runtime.lastError.message,
               );
-            }
           },
         );
       }
     });
 
-    const url = `http://${ip}/api/qr?bin=${account.bin}&acc=${account.acc}&amt=${amt}&on=${encodeURIComponent(account.on || account.name)}&desc=${encodeURIComponent(desc)}`;
+    // Push to hardware ONLY if IP is provided
+    if (ip) {
+      const url = `http://${ip}/api/qr?bin=${account.bin}&acc=${account.acc}&amt=${amt}&on=${encodeURIComponent(account.name)}&desc=${encodeURIComponent(desc)}`;
+      const user = espUserInput.value.trim();
+      const pass = espPassInput.value.trim();
+      const headers = {};
+      if (user || pass)
+        headers["Authorization"] = "Basic " + btoa(user + ":" + pass);
 
-    const user = document.getElementById("esp_user").value.trim();
-    const pass = document.getElementById("esp_pass").value.trim();
-    const headers = {};
-    if (user || pass) {
-      headers["Authorization"] = "Basic " + btoa(user + ":" + pass);
-    }
-
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-      const response = await fetch(url, {
-        method: "GET",
-        signal: controller.signal,
-        headers: headers,
-      });
-
-      if (response.ok) {
-        showStatus("✅ Đã tạo QR thành công", "success");
-      } else {
-        showStatus("❌ Lỗi: " + response.status, "error");
+      try {
+        const controller = new AbortController();
+        setTimeout(() => controller.abort(), 5000);
+        const response = await fetch(url, {
+          method: "GET",
+          signal: controller.signal,
+          headers,
+        });
+        if (response.ok) {
+          showStatus("✅ Create QR successfully", "success");
+        } else {
+          showStatus(
+            "⚠️ Create QR failed (Device response error: " +
+              response.status +
+              ")",
+            "error",
+          );
+        }
+      } catch (err) {
+        showStatus("⚠️ Create QR failed (Cannot connect to device)", "info");
       }
-    } catch (err) {
-      showStatus("❌ Lỗi kết nối", "error");
+    } else {
+      showStatus("✅ Create QR on screen", "success");
     }
   });
 
@@ -426,17 +691,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const target =
       targetId === "status" ? statusDiv : document.getElementById(targetId);
     if (!target) return;
-
     target.textContent = msg;
     target.className = "status " + type;
     target.style.display = "block";
-
-    // Success messages auto-hide after 5 seconds
     if (type === "success") {
       setTimeout(() => {
-        if (target.textContent === msg) {
-          target.style.display = "none";
-        }
+        if (target.textContent === msg) target.style.display = "none";
       }, 5000);
     }
   }

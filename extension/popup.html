@@ -5,73 +5,180 @@
     <link rel="stylesheet" href="popup.css" />
   </head>
   <body>
+    <div class="tabs">
+      <div class="tab active" data-tab="use">⚡</div>
+      <div class="tab" data-tab="manage">⚙️</div>
+    </div>
+
     <div class="container">
-      <h2>QR Station Link</h2>
+      <!-- USE TAB -->
+      <div id="tab-use" class="tab-content active">
+        <!-- <h2>QR Station Link</h2> -->
 
-      <div class="form-group">
-        <label>IP thiết bị</label>
-        <div style="display: flex; gap: 8px; margin-bottom: 8px">
-          <input
-            type="text"
-            id="ip"
-            placeholder="192.168.1.x"
-            style="flex: 1"
-          />
-          <button
-            id="search"
-            class="btn"
-            style="
-              width: auto;
-              margin: 0;
-              padding: 0 12px;
-              background: var(--secondary);
-            "
-          >
-            🔍
-          </button>
+        <div class="form-group" id="accountGroup">
+          <label>Account</label>
+          <select id="targetAccount">
+            <option value="">-- Select account --</option>
+          </select>
         </div>
-        <div style="display: flex; gap: 8px">
-          <input
-            type="text"
-            id="esp_user"
-            placeholder="Tài khoản"
-            style="flex: 1"
-          />
-          <input
-            type="password"
-            id="esp_pass"
-            placeholder="Mật khẩu"
-            style="flex: 1"
-          />
+
+        <div class="form-group">
+          <label>Amount</label>
+          <input type="number" id="amt" value="1000" />
         </div>
-      </div>
 
-      <div class="form-group" id="accountGroup">
-        <label>Tài khoản nhận</label>
-        <select id="targetAccount">
-          <option value="">-- Đang đợi kết nối --</option>
-        </select>
-      </div>
-
-      <div class="form-group">
-        <label>Số tiền</label>
-        <input type="number" id="amt" value="1000" />
-      </div>
-
-      <div class="form-group">
-        <label>Nội dung QR</label>
-        <div style="display: flex; flex-direction: column; gap: 5px">
-          <input type="text" id="qr_default_content" />
-          <div style="font-size: 11px; color: #aaa; font-style: italic">
-            Bỏ trống để khách tự nhập nội dung
+        <div class="form-group">
+          <label>Message</label>
+          <div style="display: flex; flex-direction: column; gap: 5px">
+            <input type="text" id="qr_default_content" />
+            <div style="font-size: 11px; color: #aaa">
+              Leave empty for customer enter message
+            </div>
           </div>
         </div>
+
+        <button id="push" class="btn">CREATE QR</button>
+        <div id="status" class="status"></div>
+
+        <div class="settings-box mqtt-settings">
+          <div
+            style="
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              margin-bottom: 10px;
+            "
+          >
+            <div style="display: flex; align-items: center; gap: 8px">
+              <label style="font-size: 14px"> Notification payment </label>
+              <div
+                class="status-dot disconnected mqtt-status-indicator"
+                title="Disconnected"
+              ></div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="mqtt_enabled" checked />
+              <span class="slider round"></span>
+            </label>
+          </div>
+          <div
+            style="
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              margin-bottom: 10px;
+            "
+          >
+            <div style="display: flex; align-items: center; gap: 8px">
+              <label style="font-size: 14px"> Sound </label>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="mqtt_sound" checked />
+              <span class="slider round"></span>
+            </label>
+          </div>
+          <div id="mqtt_fields"></div>
+        </div>
       </div>
 
-      <button id="push" class="btn">TẠO QR</button>
-      <div id="status" class="status"></div>
+      <!-- MANAGE TAB -->
+      <div id="tab-manage" class="tab-content">
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+          "
+        >
+          <h2 style="margin: 0; text-align: left">Accounts</h2>
+          <div style="display: flex; gap: 5px">
+            <button id="import-json" class="btn-small" title="Import JSON">
+              Import
+            </button>
+            <button id="export-json" class="btn-small" title="Export JSON">
+              Export
+            </button>
+            <button
+              id="add-account"
+              class="btn-small"
+              style="background: var(--primary)"
+            >
+              Add
+            </button>
+          </div>
+          <input
+            type="file"
+            id="file-input"
+            style="display: none"
+            accept=".json"
+          />
+        </div>
 
-      <div class="settings-box mqtt-settings">
+        <div id="account-list" class="account-list">
+          <!-- Account items will be injected here -->
+        </div>
+
+        <div class="divider"></div>
+
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+          "
+        >
+          <h2 style="margin: 0">QR Device</h2>
+          <button
+            id="device-clean"
+            class="btn-small"
+            style="color: white"
+            title="Clean Device Config"
+          >
+            🗑️
+          </button>
+        </div>
+        <div class="form-group">
+          <div style="display: flex; gap: 8px; margin-bottom: 8px">
+            <input
+              type="text"
+              id="ip"
+              placeholder="192.168.1.x"
+              style="flex: 1"
+            />
+            <button
+              id="search"
+              class="btn"
+              style="
+                width: auto;
+                margin: 0;
+                padding: 0 12px;
+                background: var(--secondary);
+              "
+            >
+              🔍
+            </button>
+          </div>
+          <div style="display: flex; gap: 8px">
+            <input
+              type="text"
+              id="esp_user"
+              placeholder="User"
+              style="flex: 1"
+            />
+            <input
+              type="password"
+              id="esp_pass"
+              placeholder="Pass"
+              style="flex: 1"
+            />
+          </div>
+          <div id="device_info" class="status" style="display: none"></div>
+        </div>
+
+        <div class="divider"></div>
+
         <div
           style="
             display: flex;
@@ -81,78 +188,135 @@
           "
         >
           <div style="display: flex; align-items: center; gap: 8px">
-            <h3 style="margin: 0; font-size: 14px">Thông báo số dư</h3>
+            <h2 style="margin: 0">MQTT server</h2>
             <div
-              id="mqtt_status_indicator"
-              class="status-dot disconnected"
+              class="status-dot disconnected mqtt-status-indicator"
               title="Disconnected"
             ></div>
           </div>
-          <label class="switch">
-            <input type="checkbox" id="mqtt_enabled" checked />
-            <span class="slider round"></span>
-          </label>
+          <button
+            id="mqtt-clean"
+            class="btn-small"
+            style="color: white"
+            title="Clean MQTT Config"
+          >
+            🗑️
+          </button>
         </div>
-        <div
-          style="
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-            padding-top: 5px;
-            border-top: 1px solid #333;
-          "
-        >
-          <label style="font-size: 13px; color: #ccc">Âm thanh thông báo</label>
-          <label class="switch">
-            <input type="checkbox" id="mqtt_sound" checked />
-            <span class="slider round"></span>
-          </label>
-        </div>
-        <div id="mqtt_fields">
-          <div class="form-group">
-            <label>Máy chủ MQTT</label>
-            <div style="display: flex; gap: 8px; margin-bottom: 8px">
-              <input
-                type="text"
-                id="mqtt_host"
-                placeholder="127.0.0.1"
-                style="flex: 3"
-              />
-              <input
-                type="number"
-                id="mqtt_port"
-                placeholder="8883"
-                style="flex: 1"
-              />
-            </div>
-
-            <div style="display: flex; gap: 8px">
-              <input
-                type="text"
-                id="mqtt_user"
-                placeholder="Tài khoản"
-                style="flex: 1"
-              />
-              <input
-                type="password"
-                id="mqtt_pass"
-                placeholder="Mật khẩu"
-                style="flex: 1"
-              />
-            </div>
+        <div class="form-group">
+          <div style="display: flex; gap: 8px; margin-bottom: 8px">
+            <input
+              type="text"
+              id="mqtt_host"
+              placeholder="127.0.0.1"
+              style="flex: 3"
+            />
+            <input
+              type="number"
+              id="mqtt_port"
+              placeholder="8883"
+              style="flex: 1"
+            />
+          </div>
+          <div style="display: flex; gap: 8px; margin-bottom: 5px">
+            <input
+              type="text"
+              id="mqtt_user"
+              placeholder="User"
+              style="flex: 1"
+            />
+            <input
+              type="password"
+              id="mqtt_pass"
+              placeholder="Pass"
+              style="flex: 1"
+            />
           </div>
           <button
             id="mqtt_save"
             class="btn"
-            style="margin-top: 10px; background: var(--secondary)"
+            style="margin-top: 8px; background: var(--secondary)"
           >
-            KẾT NỐI
+            CONNECT
           </button>
-          <div id="mqtt_info" class="status" style="display: none"></div>
+          <div
+            id="mqtt_info"
+            class="status"
+            style="display: none; margin-top: 15px"
+          ></div>
         </div>
       </div>
     </div>
+
+    <!-- Modal for Add/Edit Account -->
+    <div id="account-modal" class="modal">
+      <div class="modal-content">
+        <h3 id="modal-title">Add account</h3>
+        <input type="hidden" id="edit-idx" />
+        <div class="form-group">
+          <label>Bank</label>
+          <select id="acc-bin">
+            <option value="">-- Select bank --</option>
+            <option value="970436">Vietcombank</option>
+            <option value="970415">VietinBank</option>
+            <option value="970418">BIDV</option>
+            <option value="970405">Agribank</option>
+            <option value="970422">MB Bank</option>
+            <option value="970407">Techcombank</option>
+            <option value="970423">TPBank</option>
+            <option value="970432">VPBank</option>
+            <option value="970403">Sacombank</option>
+            <option value="970441">VIB</option>
+            <option value="970443">SHB</option>
+            <option value="970428">NAM A BANK</option>
+            <option value="970437">HDBank</option>
+            <option value="970454">VietCapitalBank</option>
+            <option value="970429">SCB</option>
+            <option value="970452">KienLongBank</option>
+            <option value="970430">PGBank</option>
+            <option value="970448">OCB</option>
+            <option value="970431">Eximbank</option>
+            <option value="970425">ABBANK</option>
+            <option value="970416">ACB</option>
+            <option value="970427">VietABank</option>
+            <option value="970440">SEABank</option>
+            <option value="970419">NCB</option>
+            <option value="970438">BaoVietBank</option>
+            <option value="970406">DongA Bank</option>
+            <option value="970433">VietBank</option>
+            <option value="970424">Shinhan Bank</option>
+            <option value="970412">PVcomBank</option>
+            <option value="970400">SaigonBank</option>
+            <option value="970449">LPBank</option>
+            <option value="970414">OceanBank</option>
+            <option value="970439">Public Bank</option>
+            <option value="970455">Woori Bank</option>
+            <option value="970408">GPBank</option>
+            <option value="970457">Wooribank</option>
+            <option value="970426">MSB</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Account name</label>
+          <input type="text" id="acc-name" placeholder="NGUYEN VAN A" />
+        </div>
+        <div class="form-group">
+          <label>Account number</label>
+          <input type="text" id="acc-num" placeholder="12345678" />
+        </div>
+        <div style="display: flex; gap: 10px; margin-top: 20px">
+          <button
+            id="modal-cancel"
+            class="btn"
+            style="background: #555; box-shadow: none"
+          >
+            Cancel
+          </button>
+          <button id="modal-save" class="btn">Save</button>
+        </div>
+      </div>
+    </div>
+
     <script src="popup.js"></script>
   </body>
 </html>
