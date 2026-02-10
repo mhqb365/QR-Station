@@ -84,7 +84,7 @@
       <div class="qr-modal-container">
         <div class="qr-modern-header">
            <div class="qr-modern-title">
-            QR Station
+            QR Station Link
            </div>
            <button class="qr-modal-close" id="qr-modal-close">&times;</button>
         </div>
