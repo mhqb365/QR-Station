@@ -5,9 +5,16 @@
     <link rel="stylesheet" href="popup.css" />
   </head>
   <body>
+    <!-- <div class="header">
+      <div class="logo-container">
+        <span class="logo-icon">QR</span>
+        <span class="logo-text">Station Link</span>
+      </div>
+    </div> -->
+
     <div class="tabs">
-      <div class="tab active" data-tab="use">⚡</div>
-      <div class="tab" data-tab="manage">⚙️</div>
+      <div class="tab active" data-tab="use" title="Create QR">CREATE</div>
+      <div class="tab" data-tab="manage" title="Manage Accounts">CONFIG</div>
     </div>
 
     <div class="container">
@@ -31,7 +38,7 @@
           <label>Message</label>
           <div style="display: flex; flex-direction: column; gap: 5px">
             <input type="text" id="qr_default_content" />
-            <div style="font-size: 11px; color: #aaa">
+            <div class="helper-text">
               Leave empty for customer enter message
             </div>
           </div>
@@ -91,7 +98,7 @@
             margin-bottom: 15px;
           "
         >
-          <h2 style="margin: 0; text-align: left">Accounts</h2>
+          <h2>Accounts</h2>
           <div style="display: flex; gap: 5px">
             <button id="import-json" class="btn-small" title="Import JSON">
               Import
@@ -99,13 +106,7 @@
             <button id="export-json" class="btn-small" title="Export JSON">
               Export
             </button>
-            <button
-              id="add-account"
-              class="btn-small"
-              style="background: var(--primary)"
-            >
-              Add
-            </button>
+            <button id="add-account" class="btn-small">Add</button>
           </div>
           <input
             type="file"
@@ -129,11 +130,10 @@
             margin-bottom: 15px;
           "
         >
-          <h2 style="margin: 0">QR Device</h2>
+          <h2>QR Device</h2>
           <button
             id="device-clean"
             class="btn-small"
-            style="color: white"
             title="Clean Device Config"
           >
             🗑️
@@ -150,12 +150,7 @@
             <button
               id="search"
               class="btn"
-              style="
-                width: auto;
-                margin: 0;
-                padding: 0 12px;
-                background: var(--secondary);
-              "
+              style="width: auto; margin: 0; padding: 0 12px"
             >
               🔍
             </button>
@@ -188,18 +183,13 @@
           "
         >
           <div style="display: flex; align-items: center; gap: 8px">
-            <h2 style="margin: 0">MQTT server</h2>
+            <h2>MQTT server</h2>
             <div
               class="status-dot disconnected mqtt-status-indicator"
               title="Disconnected"
             ></div>
           </div>
-          <button
-            id="mqtt-clean"
-            class="btn-small"
-            style="color: white"
-            title="Clean MQTT Config"
-          >
+          <button id="mqtt-clean" class="btn-small" title="Clean MQTT Config">
             🗑️
           </button>
         </div>
@@ -232,11 +222,7 @@
               style="flex: 1"
             />
           </div>
-          <button
-            id="mqtt_save"
-            class="btn"
-            style="margin-top: 8px; background: var(--secondary)"
-          >
+          <button id="mqtt_save" class="btn" style="margin-top: 8px">
             CONNECT
           </button>
           <div
@@ -305,13 +291,7 @@
           <input type="text" id="acc-num" placeholder="12345678" />
         </div>
         <div style="display: flex; gap: 10px; margin-top: 20px">
-          <button
-            id="modal-cancel"
-            class="btn"
-            style="background: #555; box-shadow: none"
-          >
-            Cancel
-          </button>
+          <button id="modal-cancel" class="btn">Cancel</button>
           <button id="modal-save" class="btn">Save</button>
         </div>
       </div>

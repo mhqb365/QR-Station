@@ -420,10 +420,7 @@
       const acc = settings.last_acc;
       const owner = settings.last_owner || "";
 
-      let desc = settings.qr_default_content;
-      if (desc === undefined || desc === null || desc === "") {
-        desc = "Chuyen tien";
-      }
+      let desc = settings.qr_default_content || "";
 
       if (!settings.last_acc) {
         alert(
